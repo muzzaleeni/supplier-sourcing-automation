@@ -1,6 +1,6 @@
 import weaviate
 from weaviate.classes.init import Auth
-from weaviate.classes.config import Configure
+from weaviate.classes.config import Configure, Property, DataType
 import os 
 from dotenv import load_dotenv
 
@@ -18,6 +18,13 @@ client = weaviate.connect_to_weaviate_cloud(
 questions = client.collections.create(
     name="Investigations",
     vector_config=Configure.Vectors.text2vec_weaviate(),  # Configure the Weaviate Embeddings integration
+    properties=[
+        Property(name="requirement_text", data_type=DataType.TEXT),
+        Property(name="status", data_type=DataType.TEXT),
+        Property(name="suppliers", data_type=DataType.TEXT),
+        Property(name="created_at", data_type=DataType.TEXT),
+        Property(name="message", data_type=DataType.TEXT),
+    ]
 )
 
 client.close()  # Free up resources
