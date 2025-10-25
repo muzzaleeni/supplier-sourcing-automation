@@ -3,7 +3,6 @@ import { SupplierCard } from "@/components/SupplierCard";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import { useEffect } from "react";
-import { toast } from "sonner";
 
 interface ConversationTurn {
   role: string;
@@ -35,21 +34,7 @@ const Results = () => {
 
   useEffect(() => {
     if (!resultsData) {
-      console.warn("⚠️ No results data found, redirecting to home");
-      toast.error("No results data found");
       navigate("/");
-      return;
-    }
-    
-    console.log("✅ Results page loaded with data:", {
-      investigation_id: resultsData.investigation_id,
-      suppliers_count: resultsData.suppliers?.length || 0,
-      cached: resultsData.cached
-    });
-
-    if (!resultsData.suppliers || resultsData.suppliers.length === 0) {
-      console.warn("⚠️ No suppliers found in results");
-      toast.warning("No suppliers were found matching your requirements");
     }
   }, [resultsData, navigate]);
 
@@ -58,28 +43,6 @@ const Results = () => {
   }
 
   const { investigation_id, cached, suppliers } = resultsData;
-
-  // Handle case where suppliers array is empty
-  if (!suppliers || suppliers.length === 0) {
-    return (
-      <div className="min-h-screen bg-background">
-        <div className="mx-auto max-w-6xl px-6 py-12 md:py-20">
-          <Button variant="ghost" onClick={() => navigate("/")} className="mb-4 -ml-4">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Form
-          </Button>
-          
-          <div className="rounded-2xl border border-border bg-card p-12 text-center">
-            <h1 className="mb-4 text-2xl font-bold text-foreground">No Suppliers Found</h1>
-            <p className="text-muted-foreground">
-              We couldn't find any suppliers matching your requirements at this time.
-              Please try again with different criteria.
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-background">

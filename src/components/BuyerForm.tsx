@@ -73,7 +73,6 @@ export function BuyerForm() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    console.log("📝 Form submission started");
 
     try {
       // Map form fields to backend schema
@@ -89,7 +88,7 @@ export function BuyerForm() {
         specifications: values.specifications || "",
       };
 
-      console.log("📤 Sending request to backend:", payload);
+      console.log("Sending request to backend:", payload);
 
       const response = await fetch("http://localhost:8000/api/v1/requirements", {
         method: "POST",
@@ -99,26 +98,12 @@ export function BuyerForm() {
         body: JSON.stringify(payload),
       });
 
-      console.log("📡 Response status:", response.status, response.statusText);
-
       if (!response.ok) {
-        let errorMessage = `API request failed with status ${response.status}`;
-        try {
-          const errorData = await response.json();
-          console.error("❌ API error response:", errorData);
-          errorMessage = errorData.message || errorData.detail || errorMessage;
-        } catch (parseError) {
-          console.error("❌ Could not parse error response");
-        }
-        throw new Error(errorMessage);
+        throw new Error(`API request failed: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log("✅ Backend response:", data);
-
-      if (!data.investigation_id) {
-        throw new Error("No investigation ID received from backend");
-      }
+      console.log("Backend response:", data);
 
       toast.success("Requirements submitted! AI agents are now searching...");
 
@@ -130,18 +115,9 @@ export function BuyerForm() {
       });
 
       form.reset();
-      console.log("✅ Form submission completed successfully");
     } catch (error) {
-      console.error("❌ Error submitting requirements:", error);
-      
-      if (error instanceof TypeError && error.message.includes("fetch")) {
-        toast.error("❌ Cannot connect to backend. Please ensure the backend is running on localhost:8000");
-        console.error("💡 Hint: Run 'cd backend && python main.py' to start the backend");
-      } else if (error instanceof Error) {
-        toast.error(`❌ Submission failed: ${error.message}`);
-      } else {
-        toast.error("❌ An unexpected error occurred. Please try again.");
-      }
+      console.error("Error submitting requirements:", error);
+      toast.error("Failed to submit requirements. Please ensure the backend is running on localhost:8000");
     } finally {
       setIsLoading(false);
     }

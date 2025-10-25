@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Loader2, Search, MessageSquare, CheckCircle2 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
-import { toast } from "sonner";
 
 interface ProcessingState {
   investigation_id: string;
@@ -27,48 +26,30 @@ const Processing = () => {
     progress: 0,
     message: "Initializing AI agents...",
   });
-  const [errorCount, setErrorCount] = useState(0);
-  const maxErrors = 3;
 
   useEffect(() => {
     if (!processingState?.investigation_id) {
-      console.warn("⚠️ No investigation ID found, redirecting to home");
-      toast.error("Missing investigation ID");
       navigate("/");
       return;
     }
 
-    console.log("🔍 Starting status polling for investigation:", processingState.investigation_id);
-
     let pollCount = 0;
-    const maxPolls = 30; // Increased to 90 seconds (30 * 3s)
+    const maxPolls = 10;
 
     const pollStatus = async () => {
       try {
-        console.log(`📡 Polling status (attempt ${pollCount + 1}/${maxPolls})...`);
-        
         const response = await fetch(
           `http://localhost:8000/api/v1/investigations/${processingState.investigation_id}/status`
         );
 
-        console.log("📡 Status response:", response.status, response.statusText);
-
         if (!response.ok) {
-          const errorText = await response.text();
-          console.error("❌ Status fetch failed:", errorText);
-          throw new Error(`Status fetch failed: ${response.status}`);
+          throw new Error("Failed to fetch status");
         }
 
         const data: StatusResponse = await response.json();
-        console.log("✅ Status data:", data);
-        
         setStatus(data);
-        setErrorCount(0); // Reset error count on success
 
         if (data.status === "completed" && data.suppliers) {
-          console.log(`✅ Investigation completed with ${data.suppliers.length} suppliers`);
-          toast.success(`Found ${data.suppliers.length} matching suppliers!`);
-          
           // Navigate to results with supplier data
           setTimeout(() => {
             navigate("/results", {
@@ -82,14 +63,7 @@ const Processing = () => {
           }, 1000);
         }
       } catch (error) {
-        console.error("❌ Error polling status:", error);
-        setErrorCount(prev => prev + 1);
-        
-        if (errorCount + 1 >= maxErrors) {
-          console.error("❌ Max errors reached, stopping poll");
-          toast.error("Connection to backend lost. Please check if the backend is running.");
-          setTimeout(() => navigate("/"), 3000);
-        }
+        console.error("Error polling status:", error);
       }
     };
 
@@ -99,20 +73,15 @@ const Processing = () => {
       pollStatus();
 
       if (pollCount >= maxPolls) {
-        console.warn("⚠️ Max polls reached, stopping");
         clearInterval(interval);
-        toast.warning("Investigation is taking longer than expected. Please check back later.");
       }
     }, 3000);
 
     // Initial poll
     pollStatus();
 
-    return () => {
-      console.log("🧹 Cleaning up status polling");
-      clearInterval(interval);
-    };
-  }, [processingState, navigate, errorCount]);
+    return () => clearInterval(interval);
+  }, [processingState, navigate]);
 
   const getStatusIcon = () => {
     switch (status.status) {
