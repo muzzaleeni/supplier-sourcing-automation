@@ -1,6 +1,6 @@
-# Tacto Track Backend - API Scaffold
+# Tacto Track Backend
 
-A minimal FastAPI backend that exposes endpoints for supplier sourcing automation. Currently returns mock data - implement your business logic here.
+FastAPI backend with intelligent investigation caching using Weaviate vector search and OpenAI embeddings. Automatically detects similar past investigations (>85% similarity) to return cached results instantly.
 
 ## Quick Start
 
@@ -17,13 +17,34 @@ source venv/bin/activate
 venv\Scripts\activate
 ```
 
-### 2. Install Dependencies
+### 2. Configure Environment Variables
+
+Copy `.env.example` to `.env` and add your API keys:
+
+```bash
+cp .env.example .env
+```
+
+**Required for similarity matching:**
+- `WEAVIATE_URL`: Your Weaviate cluster URL (get free cluster at https://console.weaviate.cloud)
+- `WEAVIATE_API_KEY`: Your Weaviate API key
+- `OPENAI_API_KEY`: OpenAI API key for embeddings (https://platform.openai.com)
+
+### 3. Install Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. Run the Server
+### 4. Initialize Weaviate Schema
+
+Run this once after setting up your Weaviate cluster:
+
+```bash
+python init_weaviate.py
+```
+
+### 5. Run the Server
 
 ```bash
 # Development mode (with auto-reload)
@@ -34,6 +55,29 @@ python main.py
 ```
 
 The API will be available at `http://localhost:8000`
+
+## Features
+
+### 🔍 Intelligent Investigation Caching
+
+The backend automatically:
+1. **Generates embeddings** from buyer requirements using OpenAI's `text-embedding-3-small`
+2. **Searches Weaviate** for similar past investigations (cosine similarity)
+3. **Returns cached results** if similarity > 85% (instant response!)
+4. **Stores new investigations** in Weaviate for future reuse
+
+This dramatically reduces API costs and response times for similar requirements.
+
+### 📊 Similarity Matching
+
+Requirements are compared based on:
+- Product description
+- Quantity
+- Budget range
+- Timeline
+- Technical specifications
+
+The system calculates semantic similarity, not just keyword matching.
 
 ## API Endpoints
 
@@ -56,24 +100,52 @@ Submit buyer requirements and receive supplier matches.
 }
 ```
 
-**Response (200 OK):**
+**Response (200 OK) - New Investigation:**
 ```json
 {
-  "investigation_id": "inv_20251025_143022",
+  "investigation_id": "INV-1234567",
+  "status": "processing",
+  "cached": false,
+  "message": "Investigation started. Poll /api/v1/investigations/{id}/status for updates."
+}
+```
+
+**Response (200 OK) - Cached Investigation:**
+```json
+{
+  "investigation_id": "INV-7654321",
+  "status": "completed",
+  "cached": true,
+  "similarity": 92.3,
+  "message": "Found similar investigation with 92.3% match. Returning cached results.",
+  "suppliers": [...]
+}
+```
+
+### GET `/api/v1/investigations/{investigation_id}/status`
+
+Poll for investigation progress and results.
+
+**Response:**
+```json
+{
+  "investigation_id": "INV-1234567",
+  "status": "completed",
+  "progress": 100,
+  "message": "Investigation complete!",
   "cached": false,
   "suppliers": [
     {
-      "company_name": "TechSupply Manufacturing Ltd.",
+      "name": "TechSupply Manufacturing Ltd.",
       "contact_email": "sales@techsupply.com",
-      "contact_name": "Sarah Johnson",
-      "pricing": "$15-22 per unit (volume discounts available)",
-      "lead_time": "8-10 weeks for initial order",
-      "capabilities": "ISO 9001:2015 certified, 15+ years in industrial sensors...",
-      "confidence_score": 0.92,
+      "contact_phone": "+1-555-0123",
+      "website": "https://techsupply.com",
+      "location": "San Jose, CA, USA",
+      "match_score": 92,
+      "capabilities": ["ISO 9001:2015 certified", "15+ years in industrial sensors"],
       "conversation_log": [...]
     }
-  ],
-  "timestamp": "2025-10-25T14:30:22.123456"
+  ]
 }
 ```
 
@@ -107,35 +179,49 @@ Or visit the interactive API docs:
 
 ```
 backend/
-├── main.py              # FastAPI app with mock endpoints
-├── requirements.txt     # Python dependencies
+├── main.py              # FastAPI app with Weaviate integration
+├── init_weaviate.py     # Weaviate schema initialization
+├── requirements.txt     # Python dependencies (includes weaviate-client, openai)
 ├── .env.example         # Environment variables template
 ├── test_request.json    # Sample request for testing
 └── README.md           # This file
 ```
 
+## How It Works
+
+1. **Buyer submits requirements** → POST `/api/v1/requirements`
+2. **System generates embedding** from requirement text
+3. **Weaviate searches** for similar past investigations
+4. **If match found (>85%)** → Return cached results instantly ⚡
+5. **If no match** → Start new investigation, poll for updates
+6. **Investigation completes** → Results stored in Weaviate for future reuse
+
+## Configuration
+
+### Weaviate Setup
+
+1. Create free cluster at https://console.weaviate.cloud
+2. Copy cluster URL and API key to `.env`
+3. Run `python init_weaviate.py` to create schema
+
+### Similarity Threshold
+
+Adjust similarity threshold in `main.py`:
+
+```python
+# Default: 85% similarity required for cache hit
+if similarity > 0.85:  # Change this value
+    return cached_result
+```
+
 ## Next Steps
 
-This is a scaffold API that returns mock data. To implement real functionality:
+To implement real supplier discovery:
 
-1. **Add External Services:**
-   - Uncomment dependencies in `requirements.txt`
-   - Add API keys to `.env` file
-   - Initialize clients in `main.py`
-
-2. **Implement Business Logic:**
-   - Replace mock responses with real data
-   - Add helper functions for:
-     - Vector embeddings
-     - Similarity search
-     - Supplier search
-     - Email automation
-     - Data storage
-
-3. **Error Handling:**
-   - Add proper validation
-   - Implement retry logic
-   - Add logging and monitoring
+1. **Replace mock suppliers** with actual search APIs (Exa, Google, etc.)
+2. **Add real outreach** using Resend or other email services
+3. **Store conversations** in a database (PostgreSQL, Supabase)
+4. **Add background tasks** using Celery/Redis for async processing
 
 ## CORS Configuration
 
