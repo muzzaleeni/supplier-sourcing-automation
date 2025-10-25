@@ -1,146 +1,172 @@
-# Tacto Track Backend (FastAPI)
+# Tacto Track Backend - API Scaffold
 
-This is the backend service for the Tacto Track supplier sourcing automation platform.
+A minimal FastAPI backend that exposes endpoints for supplier sourcing automation. Currently returns mock data - implement your business logic here.
 
-## Setup
+## Quick Start
 
-1. **Install Python 3.11+**
+### 1. Setup Python Environment
 
-2. **Create virtual environment:**
 ```bash
 cd backend
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Activate virtual environment:
+# On macOS/Linux:
+source venv/bin/activate
+# On Windows:
+venv\Scripts\activate
 ```
 
-3. **Install dependencies:**
+### 2. Install Dependencies
+
 ```bash
 pip install -r requirements.txt
 ```
 
-4. **Configure environment:**
-```bash
-cp .env.example .env
-# Edit .env with your actual API keys
-```
-
-5. **Set up Weaviate schema:**
-```bash
-python setup_weaviate.py
-```
-
-## Running the Backend
+### 3. Run the Server
 
 ```bash
-# Development mode with auto-reload
+# Development mode (with auto-reload)
 uvicorn main:app --reload --port 8000
 
-# Production mode
-uvicorn main:app --host 0.0.0.0 --port 8000
+# Or simply:
+python main.py
 ```
 
-API will be available at: `http://localhost:8000`
-API docs available at: `http://localhost:8000/docs`
+The API will be available at `http://localhost:8000`
 
 ## API Endpoints
 
-### POST /api/v1/requirements
-Submit a buyer requirement and get supplier matches.
+### POST `/api/v1/requirements`
+
+Submit buyer requirements and receive supplier matches.
 
 **Request Body:**
 ```json
 {
-  "companyName": "Acme Corp",
-  "contactName": "John Doe",
-  "email": "john@acme.com",
-  "phone": "+1234567890",
-  "productDescription": "Industrial sensors",
+  "companyName": "Acme Manufacturing",
+  "contactName": "John Smith",
+  "email": "john.smith@acme.com",
+  "phone": "+1-555-0123",
+  "productDescription": "Industrial temperature sensors with digital output",
   "quantity": "1000 units",
-  "budgetRange": "$10,000 - $20,000",
+  "budgetRange": "$10,000 - $25,000",
   "timeline": "3 months",
-  "specifications": "Optional technical specs"
+  "specifications": "Operating range: -40°C to 125°C, Digital I2C interface, IP67 rated housing"
 }
 ```
 
-**Response:**
+**Response (200 OK):**
 ```json
 {
-  "investigation_id": "inv_1234567890",
+  "investigation_id": "inv_20251025_143022",
   "cached": false,
   "suppliers": [
     {
-      "company_name": "Sensor Inc",
-      "contact_email": "sales@sensor.com",
-      "contact_name": "Jane Smith",
-      "pricing": "$15 per unit",
-      "lead_time": "6 weeks",
-      "capabilities": "ISO certified, 20 years experience",
+      "company_name": "TechSupply Manufacturing Ltd.",
+      "contact_email": "sales@techsupply.com",
+      "contact_name": "Sarah Johnson",
+      "pricing": "$15-22 per unit (volume discounts available)",
+      "lead_time": "8-10 weeks for initial order",
+      "capabilities": "ISO 9001:2015 certified, 15+ years in industrial sensors...",
       "confidence_score": 0.92,
       "conversation_log": [...]
     }
   ],
-  "timestamp": "2025-10-25T12:00:00Z"
+  "timestamp": "2025-10-25T14:30:22.123456"
 }
 ```
 
-### GET /health
-Health check endpoint
+### GET `/health`
 
-## Required API Keys
+Health check endpoint.
 
-1. **OpenAI API Key**: https://platform.openai.com/api-keys
-2. **Weaviate Cloud**: https://console.weaviate.cloud/
-3. **Exa API Key**: https://exa.ai/
-4. **Resend API Key**: https://resend.com/
-
-## Architecture
-
-```
-main.py
-├── create_embedding()          # Step 2: Convert text to vector
-├── check_similarity()          # Step 3-4: Search cached investigations
-├── search_suppliers()          # Step 5: Find suppliers via Exa
-├── extract_contacts()          # Step 6: Parse contact info with GPT-4o-mini
-├── simulate_conversation()     # Steps 7-8: Mock email exchange
-├── store_investigation()       # Step 9: Save to Weaviate
-└── send_results_email()        # Step 10: Email results to buyer
-```
-
-## Deployment
-
-### Railway
-```bash
-railway init
-railway add
-railway up
-```
-
-### Render
-```bash
-# Add render.yaml and deploy via dashboard
-```
-
-### Docker
-```bash
-docker build -t tacto-track-backend .
-docker run -p 8000:8000 --env-file .env tacto-track-backend
+**Response:**
+```json
+{
+  "status": "healthy",
+  "timestamp": "2025-10-25T14:30:22.123456"
+}
 ```
 
 ## Testing
 
-```bash
-# Test health endpoint
-curl http://localhost:8000/health
+Use the included test file:
 
-# Test requirements endpoint
+```bash
 curl -X POST http://localhost:8000/api/v1/requirements \
   -H "Content-Type: application/json" \
   -d @test_request.json
 ```
 
-## Troubleshooting
+Or visit the interactive API docs:
+- Swagger UI: `http://localhost:8000/docs`
+- ReDoc: `http://localhost:8000/redoc`
 
-- **Weaviate connection errors**: Verify WEAVIATE_URL and WEAVIATE_API_KEY
-- **OpenAI rate limits**: Add retry logic or upgrade plan
-- **No suppliers found**: Check Exa API key and query format
-- **Email not sending**: Verify Resend API key and sender domain
+## Project Structure
+
+```
+backend/
+├── main.py              # FastAPI app with mock endpoints
+├── requirements.txt     # Python dependencies
+├── .env.example         # Environment variables template
+├── test_request.json    # Sample request for testing
+└── README.md           # This file
+```
+
+## Next Steps
+
+This is a scaffold API that returns mock data. To implement real functionality:
+
+1. **Add External Services:**
+   - Uncomment dependencies in `requirements.txt`
+   - Add API keys to `.env` file
+   - Initialize clients in `main.py`
+
+2. **Implement Business Logic:**
+   - Replace mock responses with real data
+   - Add helper functions for:
+     - Vector embeddings
+     - Similarity search
+     - Supplier search
+     - Email automation
+     - Data storage
+
+3. **Error Handling:**
+   - Add proper validation
+   - Implement retry logic
+   - Add logging and monitoring
+
+## CORS Configuration
+
+CORS is pre-configured for:
+- `http://localhost:5173` (Vite dev server)
+- `http://localhost:3000` (alternative frontend port)
+- `http://localhost:8080` (alternative port)
+
+Update `main.py` to add production origins when deploying.
+
+## Deployment
+
+### Option 1: Railway
+```bash
+railway login
+railway init
+railway up
+```
+
+### Option 2: Render
+1. Connect your GitHub repo
+2. Create new Web Service
+3. Build command: `pip install -r requirements.txt`
+4. Start command: `uvicorn main:app --host 0.0.0.0 --port $PORT`
+
+### Option 3: Docker
+```dockerfile
+FROM python:3.11-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+COPY . .
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
