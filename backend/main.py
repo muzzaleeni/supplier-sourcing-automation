@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import logging
 from typing import List, Optional
 from datetime import datetime
 from fastapi import FastAPI
@@ -11,19 +12,38 @@ from exa_py import Exa
 from openai import OpenAI
 import time
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 load_dotenv()
 
 # Initialize Exa client
 exa_client = None
 EXA_API_KEY = os.getenv("EXA_API_KEY")
 if EXA_API_KEY:
-    exa_client = Exa(EXA_API_KEY)
+    try:
+        exa_client = Exa(EXA_API_KEY)
+        logger.info("✓ Exa client initialized successfully")
+    except Exception as e:
+        logger.error(f"✗ Failed to initialize Exa client: {e}")
+else:
+    logger.warning("⚠ EXA_API_KEY not found - Exa functionality will be disabled")
 
 # Initialize OpenAI client
 openai_client = None
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if OPENAI_API_KEY:
-    openai_client = OpenAI(api_key=OPENAI_API_KEY)
+    try:
+        openai_client = OpenAI(api_key=OPENAI_API_KEY)
+        logger.info("✓ OpenAI client initialized successfully")
+    except Exception as e:
+        logger.error(f"✗ Failed to initialize OpenAI client: {e}")
+else:
+    logger.warning("⚠ OPENAI_API_KEY not found - AI conversation simulation will be disabled")
 
 # Initialize FastAPI app
 app = FastAPI(title="Tacto Track API", version="1.0.0")
@@ -89,6 +109,7 @@ websets = {}  # Track Exa webset IDs by investigation_id
 def create_exa_webset(requirement: BuyerRequirement):
     """Create an Exa webset to search for suppliers"""
     if not exa_client:
+        logger.warning("⚠ Exa client not available - skipping webset creation")
         return None
     
     # Build search query from product description and specifications
@@ -96,8 +117,9 @@ def create_exa_webset(requirement: BuyerRequirement):
     if requirement.specifications:
         prompt += f". Specifications: {requirement.specifications}"
     
+    logger.info(f"Creating Exa webset for: {prompt[:100]}...")
+    
     try:
-        1 + 'a'
         webset = exa_client.websets.create(params={
             'search': {
                 'query': f'Mail of company representatives for suppliers: {prompt}',
@@ -116,16 +138,21 @@ def create_exa_webset(requirement: BuyerRequirement):
             ]
         })
 
+        webset_id = dict(webset)['id']
+        logger.info(f"✓ Exa webset created successfully: {webset_id}")
+        logger.info("⏳ Waiting 60 seconds for Exa to process webset...")
         time.sleep(60)
-        return dict(webset)['id']
+        logger.info("✓ Webset processing wait completed")
+        return webset_id
     except Exception as e:
-        print(f"Error creating Exa webset: {e}")
+        logger.error(f"✗ Error creating Exa webset: {type(e).__name__}: {e}")
         return None
 
 
 def simulate_email_conversation(supplier_name: str, supplier_email: str, requirement: BuyerRequirement) -> dict:
     """Simulate an email conversation with a supplier using OpenAI"""
     if not openai_client:
+        logger.warning(f"⚠ OpenAI client not available - using basic conversation for {supplier_email}")
         return {
             "conversation": [
                 {
@@ -137,6 +164,8 @@ def simulate_email_conversation(supplier_name: str, supplier_email: str, require
             "is_decision_maker": True,
             "next_action": None
         }
+    
+    logger.info(f"Simulating email conversation with {supplier_name} ({supplier_email})")
     
     conversation = []
     
@@ -165,6 +194,7 @@ Best regards,
     
     # 2. Use OpenAI to simulate supplier response
     try:
+        logger.info(f"Generating supplier response simulation for {supplier_name}...")
         simulation_prompt = f"""You are simulating a supplier response to this inquiry email. 
 The supplier is from company: {supplier_name}
 Email: {supplier_email}
@@ -185,6 +215,7 @@ Be concise and professional. Include the supplier's role/title in the signature.
         )
         
         simulated_reply = response.choices[0].message.content
+        logger.info(f"✓ Generated supplier response simulation")
         
         conversation.append({
             "role": "supplier",
@@ -193,6 +224,7 @@ Be concise and professional. Include the supplier's role/title in the signature.
         })
         
         # 3. Extract information from the response
+        logger.info(f"Extracting decision-maker information...")
         extraction_prompt = f"""You are an assistant that reads a supplier reply and extracts information as JSON.
 Input conversation:
 {json.dumps(conversation)}
@@ -211,6 +243,7 @@ Respond ONLY with valid JSON."""
         )
         
         extracted = json.loads(extraction.choices[0].message.content)
+        logger.info(f"✓ Extracted: is_decision_maker={extracted.get('is_decision_maker')}, contact_email={extracted.get('contact_email')}")
         
         next_action = None
         if not extracted.get('is_decision_maker') and extracted.get('contact_email'):
@@ -232,7 +265,7 @@ Respond ONLY with valid JSON."""
         }
         
     except Exception as e:
-        print(f"Error simulating conversation: {e}")
+        logger.error(f"✗ Error simulating conversation: {type(e).__name__}: {e}")
         # Fallback to basic conversation
         conversation.append({
             "role": "supplier",
@@ -249,11 +282,15 @@ Respond ONLY with valid JSON."""
 def parse_exa_webset_items(webset_id: str, requirement: BuyerRequirement) -> List[SupplierMatch]:
     """Fetch and parse Exa webset results into SupplierMatch objects"""
     if not exa_client:
+        logger.warning("⚠ Exa client not available - cannot parse webset items")
         return []
+    
+    logger.info(f"Fetching items from Exa webset: {webset_id}")
     
     try:
         items = exa_client.websets.items.list(webset_id=webset_id, limit=20)
         items_dict = dict(items)
+        logger.info(f"✓ Retrieved {len(items_dict.get('data', []))} items from Exa")
         
         results = []
         seen_emails = set()
@@ -333,10 +370,11 @@ def parse_exa_webset_items(webset_id: str, requirement: BuyerRequirement) -> Lis
                 if len(results) >= 10:
                     break
         
+        logger.info(f"✓ Successfully parsed {len(results)} supplier matches")
         return results
     except Exception as e:
-        print(f"Error parsing Exa webset: {e}")
-        return [('Richard Paci', 'rpaci@americanlumberco.com', 'https://www.linkedin.com/in/richard-paci-321b4b54'), ('Benjamin Stuart', 'benjaminstuart@gmail.com', 'https://www.linkedin.com/in/benjamin-stuart-98a40982'), ('Todd London', 'todd@sherwoodlumber.com', 'https://linkedin.com/in/buildingproductstrategy')]
+        logger.error(f"✗ Error parsing Exa webset: {type(e).__name__}: {e}")
+        return []
 
 @app.post("/api/v1/requirements")
 async def process_requirements(requirement: BuyerRequirement):
@@ -346,12 +384,22 @@ async def process_requirements(requirement: BuyerRequirement):
     """
     investigation_id = f"INV-{abs(hash(requirement.email + str(requirement.companyName))) % 10000000}"
     
+    logger.info(f"=== NEW INVESTIGATION {investigation_id} ===")
+    logger.info(f"Company: {requirement.companyName}")
+    logger.info(f"Product: {requirement.productDescription}")
+    logger.info(f"Quantity: {requirement.quantity}, Budget: {requirement.budgetRange}, Timeline: {requirement.timeline}")
+    
     # Create Exa webset for supplier discovery
     webset_id = None
     if exa_client:
         webset_id = create_exa_webset(requirement)
         if webset_id:
             websets[investigation_id] = webset_id
+            logger.info(f"✓ Webset {webset_id} associated with investigation {investigation_id}")
+        else:
+            logger.warning(f"⚠ Failed to create webset for investigation {investigation_id}")
+    else:
+        logger.warning(f"⚠ Exa client unavailable - investigation {investigation_id} will use mock data")
     
     # Store investigation status
     investigations[investigation_id] = {
@@ -376,7 +424,10 @@ async def get_investigation_status(investigation_id: str):
     Get the current status of an investigation.
     Simulates progressive status updates until completion.
     """
+    logger.info(f"Status check for investigation: {investigation_id}")
+    
     if investigation_id not in investigations:
+        logger.warning(f"⚠ Investigation {investigation_id} not found")
         return {
             "investigation_id": investigation_id,
             "status": "error",
@@ -418,6 +469,7 @@ async def get_investigation_status(investigation_id: str):
     
     # If completed, return suppliers
     if status == "completed":
+        logger.info(f"Investigation {investigation_id} completed - preparing supplier results")
         suppliers = []
         
         # Try to get real suppliers from Exa
@@ -425,13 +477,13 @@ async def get_investigation_status(investigation_id: str):
         if webset_id and exa_client:
             try:
                 suppliers = parse_exa_webset_items(webset_id, requirement)
-                print(f"Successfully parsed {len(suppliers)} suppliers from Exa")
+                logger.info(f"✓ Successfully parsed {len(suppliers)} suppliers from Exa")
             except Exception as e:
-                print(f"Error fetching Exa results: {e}")
+                logger.error(f"✗ Error fetching Exa results: {type(e).__name__}: {e}")
         
         # Fallback to mock suppliers if Exa didn't return results
         if not suppliers:
-            print("Using mock suppliers as fallback")
+            logger.warning("⚠ Using mock suppliers as fallback (no real data available)")
             suppliers = [
                 SupplierMatch(
                     name="TechSupply Manufacturing Ltd.",
@@ -508,10 +560,16 @@ async def get_investigation_status(investigation_id: str):
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
-    return {
+    health_status = {
         "status": "healthy",
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
+        "services": {
+            "exa": "enabled" if exa_client else "disabled (missing EXA_API_KEY)",
+            "openai": "enabled" if openai_client else "disabled (missing OPENAI_API_KEY)"
+        }
     }
+    logger.info(f"Health check: {health_status}")
+    return health_status
 
 
 if __name__ == "__main__":
