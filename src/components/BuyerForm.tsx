@@ -1,6 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -51,6 +52,8 @@ const formSchema = z.object({
 });
 
 export function BuyerForm() {
+  const [isLoading, setIsLoading] = useState(false);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -66,10 +69,50 @@ export function BuyerForm() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
-    toast.success("Requirements submitted successfully! We'll match you with suppliers shortly.");
-    form.reset();
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    setIsLoading(true);
+    
+    try {
+      // Map form fields to backend schema
+      const payload = {
+        company_name: values.companyName,
+        contact_name: values.contactName,
+        contact_email: values.email,
+        contact_phone: values.phone,
+        product_description: values.productService,
+        quantity: values.quantity,
+        budget_range: values.budgetRange,
+        timeline: values.timeline,
+        additional_specs: values.specifications || "",
+      };
+
+      console.log("Sending request to backend:", payload);
+
+      const response = await fetch("http://localhost:8000/api/v1/requirements", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error(`API request failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log("Backend response:", data);
+
+      toast.success(`Requirements submitted! Investigation ID: ${data.investigation_id}`);
+      toast.info(`Found ${data.suppliers.length} potential suppliers`);
+      
+      form.reset();
+    } catch (error) {
+      console.error("Error submitting requirements:", error);
+      toast.error("Failed to submit requirements. Please ensure the backend is running on localhost:8000");
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -259,8 +302,8 @@ export function BuyerForm() {
           />
         </div>
 
-        <Button type="submit" size="lg" className="w-full md:w-auto">
-          Submit Requirements
+        <Button type="submit" size="lg" className="w-full md:w-auto" disabled={isLoading}>
+          {isLoading ? "Submitting..." : "Submit Requirements"}
         </Button>
       </form>
     </Form>
