@@ -91,18 +91,30 @@ export function SupplierCard({ supplier }: SupplierCardProps) {
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-3">
             <div className="space-y-3 rounded-lg border border-border bg-card p-4">
-              {supplier.conversation_log.map((turn, index) => (
-                <div key={index} className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className={`text-xs font-semibold ${turn.role === "assistant" ? "text-primary" : "text-muted-foreground"}`}>
-                      {turn.role === "assistant" ? "AI Agent" : "System"}
-                    </span>
-                    <span className="text-xs text-muted-foreground">{turn.timestamp}</span>
+              {supplier.conversation_log.map((turn, index) => {
+                const getRoleDisplay = () => {
+                  switch(turn.role) {
+                    case "buyer": return { label: "Buyer (You)", color: "text-blue-600" };
+                    case "supplier": return { label: "Supplier Response", color: "text-green-600" };
+                    case "system": return { label: "AI Analysis", color: "text-amber-600" };
+                    default: return { label: turn.role, color: "text-muted-foreground" };
+                  }
+                };
+                const roleInfo = getRoleDisplay();
+                
+                return (
+                  <div key={index} className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className={`text-xs font-semibold ${roleInfo.color}`}>
+                        {roleInfo.label}
+                      </span>
+                      <span className="text-xs text-muted-foreground">{turn.timestamp}</span>
+                    </div>
+                    <p className="text-sm text-foreground whitespace-pre-wrap">{turn.content}</p>
+                    {index < supplier.conversation_log.length - 1 && <div className="mt-3 h-px bg-border" />}
                   </div>
-                  <p className="text-sm text-foreground">{turn.content}</p>
-                  {index < supplier.conversation_log.length - 1 && <div className="mt-3 h-px bg-border" />}
-                </div>
-              ))}
+                );
+              })}
             </div>
           </CollapsibleContent>
         </Collapsible>

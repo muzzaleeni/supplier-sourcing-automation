@@ -1,5 +1,6 @@
 import os
 import re
+import json
 from typing import List, Optional
 from datetime import datetime
 from fastapi import FastAPI
@@ -7,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 from dotenv import load_dotenv
 from exa_py import Exa
+from openai import OpenAI
 import time
 
 load_dotenv()
@@ -16,6 +18,12 @@ exa_client = None
 EXA_API_KEY = os.getenv("EXA_API_KEY")
 if EXA_API_KEY:
     exa_client = Exa(EXA_API_KEY)
+
+# Initialize OpenAI client
+openai_client = None
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+if OPENAI_API_KEY:
+    openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
 # Initialize FastAPI app
 app = FastAPI(title="Tacto Track API", version="1.0.0")
@@ -115,6 +123,129 @@ def create_exa_webset(requirement: BuyerRequirement):
         return None
 
 
+def simulate_email_conversation(supplier_name: str, supplier_email: str, requirement: BuyerRequirement) -> dict:
+    """Simulate an email conversation with a supplier using OpenAI"""
+    if not openai_client:
+        return {
+            "conversation": [
+                {
+                    "role": "assistant",
+                    "content": f"Found contact at {supplier_email}",
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                }
+            ],
+            "is_decision_maker": True,
+            "next_action": None
+        }
+    
+    conversation = []
+    
+    # 1. Generate initial outreach email
+    outreach = f"""Subject: Inquiry: {requirement.productDescription[:50]}
+
+Hi,
+
+I'm reaching out from {requirement.companyName} regarding our need for {requirement.productDescription}.
+
+Quick question: are you the right person to speak with about this request? If not, could you please forward me the email of the correct contact or reply with their contact email?
+
+Brief requirements:
+- Quantity: {requirement.quantity}
+- Budget: {requirement.budgetRange}
+- Timeline: {requirement.timeline}
+
+Best regards,
+{requirement.contactName}"""
+    
+    conversation.append({
+        "role": "buyer",
+        "content": outreach,
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    })
+    
+    # 2. Use OpenAI to simulate supplier response
+    try:
+        simulation_prompt = f"""You are simulating a supplier response to this inquiry email. 
+The supplier is from company: {supplier_name}
+Email: {supplier_email}
+
+Buyer's email:
+{outreach}
+
+Generate a realistic supplier response. The response should either:
+1. Confirm they are the right person to discuss this (if the email seems like a decision-maker)
+2. Redirect to another contact (if the email seems like a general contact)
+
+Be concise and professional. Include the supplier's role/title in the signature."""
+
+        response = openai_client.chat.completions.create(
+            model="gpt-4",
+            messages=[{"role": "user", "content": simulation_prompt}],
+            temperature=0.7
+        )
+        
+        simulated_reply = response.choices[0].message.content
+        
+        conversation.append({
+            "role": "supplier",
+            "content": simulated_reply,
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        })
+        
+        # 3. Extract information from the response
+        extraction_prompt = f"""You are an assistant that reads a supplier reply and extracts information as JSON.
+Input conversation:
+{json.dumps(conversation)}
+
+Return a JSON object ONLY (no other text) with these fields:
+- is_decision_maker: boolean  # true if the supplier says they are the right contact
+- contact_email: string|null  # the email of the correct contact if provided, otherwise null
+- reason: string  # short explanation of how you decided
+
+Respond ONLY with valid JSON."""
+
+        extraction = openai_client.chat.completions.create(
+            model="gpt-4",
+            messages=[{"role": "user", "content": extraction_prompt}],
+            temperature=0
+        )
+        
+        extracted = json.loads(extraction.choices[0].message.content)
+        
+        next_action = None
+        if not extracted.get('is_decision_maker') and extracted.get('contact_email'):
+            next_action = {
+                "action": "contact_new_email",
+                "email": extracted['contact_email']
+            }
+        elif extracted.get('is_decision_maker'):
+            next_action = {
+                "action": "continue_with_current_contact",
+                "email": supplier_email
+            }
+        
+        return {
+            "conversation": conversation,
+            "is_decision_maker": extracted.get('is_decision_maker', False),
+            "next_action": next_action,
+            "reason": extracted.get('reason', '')
+        }
+        
+    except Exception as e:
+        print(f"Error simulating conversation: {e}")
+        # Fallback to basic conversation
+        conversation.append({
+            "role": "supplier",
+            "content": "Thank you for reaching out. Yes, I'm the right person to discuss this.",
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        })
+        return {
+            "conversation": conversation,
+            "is_decision_maker": True,
+            "next_action": None
+        }
+
+
 def parse_exa_webset_items(webset_id: str, requirement: BuyerRequirement) -> List[SupplierMatch]:
     """Fetch and parse Exa webset results into SupplierMatch objects"""
     if not exa_client:
@@ -150,7 +281,6 @@ def parse_exa_webset_items(webset_id: str, requirement: BuyerRequirement) -> Lis
                 domain = email.split('@')[1].split('.')[0].title()
                 company_name = f"{domain} {name.split()[0] if name else 'Company'}"
 
-                # !!!!! 
                 # Generate match score (higher for more complete data)
                 match_score = 85 + len(results) * 2  # Decreasing scores
                 
@@ -162,19 +292,32 @@ def parse_exa_webset_items(webset_id: str, requirement: BuyerRequirement) -> Lis
                 if linkedin:
                     capabilities.append(f"LinkedIn verified")
                 
-                # Generate conversation log
-                conversation_log = [
-                    {
-                        "role": "assistant",
-                        "content": f"Found contact {name} at {email} via web search",
+                # Simulate email conversation with this supplier
+                email_simulation = simulate_email_conversation(company_name, email, requirement)
+                conversation_log = email_simulation["conversation"]
+                
+                # Add analysis note
+                if email_simulation.get("next_action"):
+                    next_action = email_simulation["next_action"]
+                    if next_action["action"] == "contact_new_email":
+                        conversation_log.append({
+                            "role": "system",
+                            "content": f"⚠️ Not decision maker. Recommended next contact: {next_action['email']}",
+                            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        })
+                    elif next_action["action"] == "continue_with_current_contact":
+                        conversation_log.append({
+                            "role": "system",
+                            "content": "✓ Confirmed decision maker. Ready for detailed discussion.",
+                            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        })
+                
+                if email_simulation.get("reason"):
+                    conversation_log.append({
+                        "role": "system",
+                        "content": f"Analysis: {email_simulation['reason']}",
                         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    },
-                    {
-                        "role": "assistant",
-                        "content": f"Verified LinkedIn profile and email address. Ready for outreach.",
-                        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    }
-                ]
+                    })
                 
                 results.append(SupplierMatch(
                     name=company_name,
