@@ -11,13 +11,19 @@ load_dotenv()
 # Initialize FastAPI app
 app = FastAPI(title="Tacto Track API", version="1.0.0")
 
-# CORS middleware
+# CORS middleware - Allow Lovable preview and local development
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:8080"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://localhost:8080",
+        "https://*.lovable.app",  # Lovable preview
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    allow_origin_regex=r"https://.*\.lovable\.app",  # Support all Lovable subdomains
 )
 
 
