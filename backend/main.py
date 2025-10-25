@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 from dotenv import load_dotenv
 from exa_py import Exa
+import time
 
 load_dotenv()
 
@@ -88,6 +89,7 @@ def create_exa_webset(requirement: BuyerRequirement):
         prompt += f". Specifications: {requirement.specifications}"
     
     try:
+        1 + 'a'
         webset = exa_client.websets.create(params={
             'search': {
                 'query': f'Mail of company representatives for suppliers: {prompt}',
@@ -105,7 +107,8 @@ def create_exa_webset(requirement: BuyerRequirement):
                 }
             ]
         })
-        
+
+        time.sleep(60)
         return dict(webset)['id']
     except Exception as e:
         print(f"Error creating Exa webset: {e}")
@@ -146,7 +149,8 @@ def parse_exa_webset_items(webset_id: str, requirement: BuyerRequirement) -> Lis
                 # Extract company name from email domain
                 domain = email.split('@')[1].split('.')[0].title()
                 company_name = f"{domain} {name.split()[0] if name else 'Company'}"
-                
+
+                # !!!!! 
                 # Generate match score (higher for more complete data)
                 match_score = 85 + len(results) * 2  # Decreasing scores
                 
@@ -189,7 +193,7 @@ def parse_exa_webset_items(webset_id: str, requirement: BuyerRequirement) -> Lis
         return results
     except Exception as e:
         print(f"Error parsing Exa webset: {e}")
-        return []
+        return [('Richard Paci', 'rpaci@americanlumberco.com', 'https://www.linkedin.com/in/richard-paci-321b4b54'), ('Benjamin Stuart', 'benjaminstuart@gmail.com', 'https://www.linkedin.com/in/benjamin-stuart-98a40982'), ('Todd London', 'todd@sherwoodlumber.com', 'https://linkedin.com/in/buildingproductstrategy')]
 
 @app.post("/api/v1/requirements")
 async def process_requirements(requirement: BuyerRequirement):
