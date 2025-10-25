@@ -1,0 +1,11 @@
+{
+  "companyName": "Acme Manufacturing",
+  "contactName": "John Smith",
+  "email": "john.smith@acme.com",
+  "phone": "+1-555-0123",
+  "productDescription": "Industrial temperature sensors with digital output",
+  "quantity": "1000 units",
+  "budgetRange": "$10,000 - $25,000",
+  "timeline": "3 months",
+  "specifications": "Operating range: -40°C to 125°C, Digital I2C interface, IP67 rated housing"
+}

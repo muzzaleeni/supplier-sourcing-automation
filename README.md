@@ -1,6 +1,25 @@
-# time management
+# Tacto Track - Supplier Sourcing Automation
 
-mvp ready by 25.10.2025 (night) -> add nice-to-have features + presentation 26.10.2025 by 14:00 
+**Hackathon Project**: MVP ready by 25.10.2025 (night) → add nice-to-have features + presentation 26.10.2025 by 14:00
+
+## Project Structure
+
+```
+/
+├── backend/              # FastAPI Python backend
+│   ├── main.py          # Main API endpoints
+│   ├── requirements.txt # Python dependencies
+│   ├── setup_weaviate.py # Weaviate schema setup
+│   └── README.md        # Backend documentation
+│
+├── src/                 # React frontend
+│   ├── components/      # UI components
+│   ├── pages/          # Page components
+│   └── ...
+│
+├── public/             # Static assets
+└── README.md           # This file
+```
 
 # tech stack used
 
