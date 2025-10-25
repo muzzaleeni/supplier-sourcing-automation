@@ -1,73 +1,59 @@
-# Welcome to your Lovable project
+# time management
 
-## Project info
+mvp ready by 25.10.2025 (night) -> add nice-to-have features + presentation 26.10.2025 by 14:00 
 
-**URL**: https://lovable.dev/projects/75edde44-9e4f-44df-90ca-330339b02db6
+# tech stack used
 
-## How can I edit this code?
+- lovable
+- react 
+- fastapi
+- python
+- openai
+  - agents builder
+  - gpt-5
+- weaviate
 
-There are several ways of editing your application.
+# project idea
 
-**Use Lovable**
+tacto track -> supplier sourcing automation
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/75edde44-9e4f-44df-90ca-330339b02db6) and start prompting.
+# side challenges 
 
-Changes made via Lovable will be committed automatically to this repo.
+think later (after mvp built)
 
-**Use your preferred IDE**
+# requirements
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## must-have
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+- buyer input form
+- matching & ranking (top 3)
+- conversation automation
+- results email to buyer
+- investigation similarity
 
-Follow these steps:
+## nice-to-have
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+todo: add after must-haves
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# end-to-end flow
 
-# Step 3: Install the necessary dependencies.
-npm i
+1. user input
+2. input translated into vector  
+3. vector similarity check in database
+4. similarity score check
+    - if similarity score is high -> return investigation result
+    - if similarity score is low-med -> start a new investigation
+5. api call to Exa with user input
+6. parse top3 results with email provided (full name & email)
+7. conversation loop with those 3 PoCs start
+    - send a template reachout message (for now hardcoded)
+    - parse replies
+    - respond accordingly
+    - repeat
+8. identify if the email is the actual PoC
+9. send results (maybe logs) to buyer email
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+# responsibilities
 
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/75edde44-9e4f-44df-90ca-330339b02db6) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+* Muslim - 1-4 tasks in end-to-end flow
+* Moritz, Leandro, David - 5-9 tasks in the end-to-end flow
