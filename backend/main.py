@@ -226,6 +226,7 @@ def create_exa_webset(requirement: BuyerRequirement) -> Optional[str]:
         
         webset_id = dict(webset).get('id')
         print(f"Created Exa webset: {webset_id}")
+        time.sleep(60)
         return webset_id
     except Exception as e:
         print(f"Error creating Exa webset: {e}")
