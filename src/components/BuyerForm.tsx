@@ -2,6 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -53,6 +54,7 @@ const formSchema = z.object({
 
 export function BuyerForm() {
   const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -105,6 +107,9 @@ export function BuyerForm() {
 
       toast.success(`Requirements submitted! Investigation ID: ${data.investigation_id}`);
       toast.info(`Found ${data.suppliers.length} potential suppliers`);
+
+      // Navigate to results page with data
+      navigate("/results", { state: data });
 
       form.reset();
     } catch (error) {
