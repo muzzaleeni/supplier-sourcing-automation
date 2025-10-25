@@ -2,7 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown, Mail, Phone, Globe, MapPin, MessageSquare } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface ConversationTurn {
   role: string;
@@ -27,6 +27,25 @@ interface SupplierCardProps {
 
 export function SupplierCard({ supplier }: SupplierCardProps) {
   const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    console.log("📋 Rendering supplier card:", {
+      name: supplier.name,
+      email: supplier.contact_email,
+      match_score: supplier.match_score,
+      capabilities_count: supplier.capabilities?.length || 0,
+      conversation_turns: supplier.conversation_log?.length || 0
+    });
+
+    // Validate supplier data
+    if (!supplier.name || !supplier.contact_email) {
+      console.warn("⚠️ Incomplete supplier data:", supplier);
+    }
+    
+    if (!supplier.conversation_log || supplier.conversation_log.length === 0) {
+      console.warn("⚠️ No conversation log for supplier:", supplier.name);
+    }
+  }, [supplier]);
 
   return (
     <Card className="transition-shadow hover:shadow-md">
@@ -72,11 +91,15 @@ export function SupplierCard({ supplier }: SupplierCardProps) {
         <div className="space-y-2">
           <p className="text-sm font-medium">Capabilities</p>
           <div className="flex flex-wrap gap-2">
-            {supplier.capabilities.map((capability, index) => (
-              <Badge key={index} variant="outline" className="text-xs">
-                {capability}
-              </Badge>
-            ))}
+            {(!supplier.capabilities || supplier.capabilities.length === 0) ? (
+              <p className="text-xs text-muted-foreground">No capabilities listed</p>
+            ) : (
+              supplier.capabilities.map((capability, index) => (
+                <Badge key={index} variant="outline" className="text-xs">
+                  {capability}
+                </Badge>
+              ))
+            )}
           </div>
         </div>
 
@@ -85,13 +108,16 @@ export function SupplierCard({ supplier }: SupplierCardProps) {
           <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg border border-border bg-muted/50 px-4 py-2 text-sm font-medium transition-colors hover:bg-muted">
             <span className="flex items-center gap-2">
               <MessageSquare className="h-4 w-4" />
-              Conversation Log ({supplier.conversation_log.length} messages)
+              Conversation Log ({supplier.conversation_log?.length || 0} messages)
             </span>
             <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`} />
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-3">
             <div className="space-y-3 rounded-lg border border-border bg-card p-4">
-              {supplier.conversation_log.map((turn, index) => {
+              {(!supplier.conversation_log || supplier.conversation_log.length === 0) ? (
+                <p className="text-sm text-muted-foreground">No conversation history available</p>
+              ) : (
+                supplier.conversation_log.map((turn, index) => {
                 const getRoleDisplay = () => {
                   switch(turn.role) {
                     case "buyer": return { label: "Buyer (You)", color: "text-blue-600" };
@@ -114,7 +140,7 @@ export function SupplierCard({ supplier }: SupplierCardProps) {
                     {index < supplier.conversation_log.length - 1 && <div className="mt-3 h-px bg-border" />}
                   </div>
                 );
-              })}
+              }))}
             </div>
           </CollapsibleContent>
         </Collapsible>
