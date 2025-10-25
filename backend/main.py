@@ -5,22 +5,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 from dotenv import load_dotenv
-import weaviate
-from weaviate.classes.init import Auth
-from openai import OpenAI
 
 load_dotenv()
-
-# Initialize OpenAI client
-openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY")) if os.getenv("OPENAI_API_KEY") else None
-
-# Initialize Weaviate client
-weaviate_client = None
-if os.getenv("WEAVIATE_URL") and os.getenv("WEAVIATE_API_KEY"):
-    weaviate_client = weaviate.connect_to_weaviate_cloud(
-        cluster_url=os.getenv("WEAVIATE_URL"),
-        auth_credentials=Auth.api_key(os.getenv("WEAVIATE_API_KEY"))
-    )
 
 # Initialize FastAPI app
 app = FastAPI(title="Tacto Track API", version="1.0.0")
@@ -81,130 +67,12 @@ class InvestigationResult(BaseModel):
 # In-memory storage for demo (in production, use a database)
 investigations = {}
 
-
-# ============================================================================
-# EMBEDDING & SIMILARITY FUNCTIONS
-# ============================================================================
-
-def generate_embedding(text: str) -> Optional[List[float]]:
-    """Generate text embedding using OpenAI"""
-    if not openai_client:
-        return None
-    
-    try:
-        response = openai_client.embeddings.create(
-            model="text-embedding-3-small",
-            input=text
-        )
-        return response.data[0].embedding
-    except Exception as e:
-        print(f"Error generating embedding: {e}")
-        return None
-
-
-def create_investigation_text(requirement: BuyerRequirement) -> str:
-    """Create a text representation of the investigation for embedding"""
-    parts = [
-        requirement.productDescription,
-        f"Quantity: {requirement.quantity}",
-        f"Budget: {requirement.budgetRange}",
-        f"Timeline: {requirement.timeline}"
-    ]
-    if requirement.specifications:
-        parts.append(f"Specifications: {requirement.specifications}")
-    return " | ".join(parts)
-
-
-def check_similar_investigation(requirement: BuyerRequirement) -> Optional[dict]:
-    """Check Weaviate for similar investigations (>85% similarity)"""
-    if not weaviate_client or not openai_client:
-        return None
-    
-    try:
-        # Generate embedding for the new requirement
-        requirement_text = create_investigation_text(requirement)
-        embedding = generate_embedding(requirement_text)
-        
-        if not embedding:
-            return None
-        
-        # Search for similar investigations in Weaviate
-        collection = weaviate_client.collections.get("Investigation")
-        response = collection.query.near_vector(
-            near_vector=embedding,
-            limit=1,
-            return_metadata=["distance"]
-        )
-        
-        if response.objects and len(response.objects) > 0:
-            obj = response.objects[0]
-            # Convert distance to similarity (Weaviate uses cosine distance)
-            similarity = 1 - obj.metadata.distance
-            
-            # If similarity > 85%, return cached result
-            if similarity > 0.85:
-                return {
-                    "investigation_id": obj.properties.get("investigation_id"),
-                    "similarity": round(similarity * 100, 1),
-                    "suppliers": obj.properties.get("suppliers", [])
-                }
-        
-        return None
-    except Exception as e:
-        print(f"Error checking similar investigation: {e}")
-        return None
-
-
-def store_investigation_in_weaviate(investigation_id: str, requirement: BuyerRequirement, suppliers: List[dict]):
-    """Store completed investigation in Weaviate for future similarity matching"""
-    if not weaviate_client or not openai_client:
-        return
-    
-    try:
-        requirement_text = create_investigation_text(requirement)
-        embedding = generate_embedding(requirement_text)
-        
-        if not embedding:
-            return
-        
-        collection = weaviate_client.collections.get("Investigation")
-        collection.data.insert(
-            properties={
-                "investigation_id": investigation_id,
-                "requirement_text": requirement_text,
-                "company_name": requirement.companyName,
-                "product_description": requirement.productDescription,
-                "quantity": requirement.quantity,
-                "suppliers": suppliers,
-                "created_at": datetime.now().isoformat()
-            },
-            vector=embedding
-        )
-    except Exception as e:
-        print(f"Error storing investigation: {e}")
-
 @app.post("/api/v1/requirements")
 async def process_requirements(requirement: BuyerRequirement):
     """
     Process buyer requirements and initiate async investigation.
-    First checks Weaviate for similar past investigations (>85% match).
     Returns immediately with investigation_id and processing status.
     """
-    # Check for similar investigations
-    similar = check_similar_investigation(requirement)
-    
-    if similar:
-        # Return cached result immediately
-        return {
-            "investigation_id": similar["investigation_id"],
-            "status": "completed",
-            "cached": True,
-            "similarity": similar["similarity"],
-            "message": f"Found similar investigation with {similar['similarity']}% match. Returning cached results.",
-            "suppliers": similar["suppliers"]
-        }
-    
-    # No similar investigation found, create new one
     investigation_id = f"INV-{abs(hash(requirement.email + str(requirement.companyName))) % 10000000}"
     
     # Store investigation status
@@ -219,7 +87,6 @@ async def process_requirements(requirement: BuyerRequirement):
     return {
         "investigation_id": investigation_id,
         "status": "processing",
-        "cached": False,
         "message": "Investigation started. Poll /api/v1/investigations/{id}/status for updates."
     }
 
@@ -328,18 +195,12 @@ async def get_investigation_status(investigation_id: str):
             )
         ]
         
-        suppliers_data = [s.model_dump() for s in mock_suppliers]
-        
-        # Store in Weaviate for future similarity matching
-        store_investigation_in_weaviate(investigation_id, requirement, suppliers_data)
-        
         return {
             "investigation_id": investigation_id,
             "status": status,
             "progress": progress,
             "message": message,
-            "cached": False,
-            "suppliers": suppliers_data
+            "suppliers": [s.model_dump() for s in mock_suppliers]
         }
     
     # Still processing
