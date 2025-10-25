@@ -18,7 +18,6 @@ app.add_middleware(
         "http://localhost:5173",
         "http://localhost:3000",
         "http://localhost:8080",
-        "https://*.lovable.app",  # Lovable preview
     ],
     allow_credentials=True,
     allow_methods=["*"],

@@ -71,19 +71,19 @@ export function BuyerForm() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    
+
     try {
       // Map form fields to backend schema
       const payload = {
-        company_name: values.companyName,
-        contact_name: values.contactName,
-        contact_email: values.email,
-        contact_phone: values.phone,
-        product_description: values.productService,
+        companyName: values.companyName,
+        contactName: values.contactName,
+        email: values.email,
+        phone: values.phone,
+        productDescription: values.productService,
         quantity: values.quantity,
-        budget_range: values.budgetRange,
+        budgetRange: values.budgetRange,
         timeline: values.timeline,
-        additional_specs: values.specifications || "",
+        specifications: values.specifications || "",
       };
 
       console.log("Sending request to backend:", payload);
@@ -105,7 +105,7 @@ export function BuyerForm() {
 
       toast.success(`Requirements submitted! Investigation ID: ${data.investigation_id}`);
       toast.info(`Found ${data.suppliers.length} potential suppliers`);
-      
+
       form.reset();
     } catch (error) {
       console.error("Error submitting requirements:", error);
@@ -124,7 +124,7 @@ export function BuyerForm() {
             <h2 className="text-xl font-semibold text-foreground">Company Information</h2>
             <p className="text-sm text-muted-foreground">Tell us about your organization</p>
           </div>
-          
+
           <div className="grid gap-6 md:grid-cols-2">
             <FormField
               control={form.control}
@@ -139,7 +139,7 @@ export function BuyerForm() {
                 </FormItem>
               )}
             />
-            
+
             <FormField
               control={form.control}
               name="contactName"
@@ -169,7 +169,7 @@ export function BuyerForm() {
                 </FormItem>
               )}
             />
-            
+
             <FormField
               control={form.control}
               name="phone"
@@ -200,7 +200,7 @@ export function BuyerForm() {
               <FormItem>
                 <FormLabel>Product or Service Needed</FormLabel>
                 <FormControl>
-                  <Textarea 
+                  <Textarea
                     placeholder="Describe the product or service you're looking for..."
                     className="min-h-[100px] resize-none"
                     {...field}
@@ -287,7 +287,7 @@ export function BuyerForm() {
               <FormItem>
                 <FormLabel>Additional Specifications (Optional)</FormLabel>
                 <FormControl>
-                  <Textarea 
+                  <Textarea
                     placeholder="Include any technical specifications, certifications, quality requirements, or other details..."
                     className="min-h-[120px] resize-none"
                     {...field}
