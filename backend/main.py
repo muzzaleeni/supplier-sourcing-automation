@@ -64,78 +64,152 @@ class InvestigationResult(BaseModel):
 # API ENDPOINTS
 # ============================================================================
 
-@app.post("/api/v1/requirements", response_model=InvestigationResult)
-async def process_requirement(requirement: BuyerRequirement):
+# In-memory storage for demo (in production, use a database)
+investigations = {}
+
+@app.post("/api/v1/requirements")
+async def process_requirements(requirement: BuyerRequirement):
     """
-    Process buyer requirements and return mock supplier matches.
-    This is a placeholder API - add your functionality here.
+    Process buyer requirements and initiate async investigation.
+    Returns immediately with investigation_id and processing status.
     """
-    # Generate mock investigation ID
-    investigation_id = f"inv_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    investigation_id = f"INV-{abs(hash(requirement.email + str(requirement.companyName))) % 10000000}"
     
-    # Mock supplier data
-    mock_suppliers = [
-        SupplierMatch(
-            name="TechSupply Manufacturing Ltd.",
-            contact_email="sales@techsupply.com",
-            contact_phone="+1-555-0123",
-            website="https://techsupply.com",
-            location="San Jose, CA, USA",
-            match_score=92,
-            capabilities=["ISO 9001:2015 certified", "15+ years in industrial sensors", "Digital I2C expertise", "IP67 housing production"],
-            conversation_log=[
-                {
-                    "role": "assistant",
-                    "content": f"Sent inquiry to sales@techsupply.com for {requirement.quantity} temperature sensors",
-                    "timestamp": "2024-01-15 10:30:00"
-                },
-                {
-                    "role": "assistant",
-                    "content": "Received positive response. Company can meet requirements with 8-10 week lead time.",
-                    "timestamp": "2024-01-15 14:45:00"
-                }
-            ]
-        ),
-        SupplierMatch(
-            name="GlobalSensor Industries",
-            contact_email="info@globalsensor.com",
-            contact_phone="+1-555-0456",
-            website="https://globalsensor.com",
-            location="Shenzhen, China",
-            match_score=87,
-            capabilities=["Specialized in temperature sensors", "I2C interfaces", "Automotive-grade components"],
-            conversation_log=[
-                {
-                    "role": "assistant",
-                    "content": "Contacted GlobalSensor Industries regarding temperature sensor requirements",
-                    "timestamp": "2024-01-15 11:00:00"
-                }
-            ]
-        ),
-        SupplierMatch(
-            name="Precision Components Co.",
-            contact_email="quotes@precisioncomp.com",
-            contact_phone="+1-555-0789",
-            website="https://precisioncomp.com",
-            location="Munich, Germany",
-            match_score=83,
-            capabilities=["Custom sensor solutions", "IP67/IP68 rated housings", "-40°C to 150°C range"],
-            conversation_log=[
-                {
-                    "role": "assistant",
-                    "content": "Sent quote request to Precision Components Co.",
-                    "timestamp": "2024-01-15 11:30:00"
-                }
-            ]
-        )
-    ]
+    # Store investigation status
+    investigations[investigation_id] = {
+        "status": "processing",
+        "progress": 0,
+        "message": "Initializing AI agents...",
+        "requirement": requirement,
+        "created_at": datetime.now()
+    }
     
-    return InvestigationResult(
-        investigation_id=investigation_id,
-        cached=False,
-        suppliers=mock_suppliers,
-        timestamp=datetime.now().isoformat()
-    )
+    return {
+        "investigation_id": investigation_id,
+        "status": "processing",
+        "message": "Investigation started. Poll /api/v1/investigations/{id}/status for updates."
+    }
+
+
+@app.get("/api/v1/investigations/{investigation_id}/status")
+async def get_investigation_status(investigation_id: str):
+    """
+    Get the current status of an investigation.
+    Simulates progressive status updates until completion.
+    """
+    if investigation_id not in investigations:
+        return {
+            "investigation_id": investigation_id,
+            "status": "error",
+            "progress": 0,
+            "message": "Investigation not found"
+        }
+    
+    investigation = investigations[investigation_id]
+    requirement = investigation["requirement"]
+    
+    # Calculate elapsed time to determine status
+    elapsed = (datetime.now() - investigation["created_at"]).total_seconds()
+    
+    # Progressive status simulation
+    if elapsed < 5:
+        status = "processing"
+        progress = 15
+        message = "Analyzing your requirements with AI..."
+    elif elapsed < 10:
+        status = "searching"
+        progress = 35
+        message = "Searching database of 247,000+ suppliers worldwide..."
+    elif elapsed < 15:
+        status = "searching"
+        progress = 55
+        message = "Found 1,247 potential matches. Filtering by capabilities..."
+    elif elapsed < 20:
+        status = "contacting"
+        progress = 75
+        message = "AI agents reaching out to top 10 suppliers..."
+    elif elapsed < 25:
+        status = "contacting"
+        progress = 90
+        message = "Collecting responses and verifying credentials..."
+    else:
+        status = "completed"
+        progress = 100
+        message = "Investigation complete!"
+    
+    # If completed, return suppliers
+    if status == "completed":
+        mock_suppliers = [
+            SupplierMatch(
+                name="TechSupply Manufacturing Ltd.",
+                contact_email="sales@techsupply.com",
+                contact_phone="+1-555-0123",
+                website="https://techsupply.com",
+                location="San Jose, CA, USA",
+                match_score=92,
+                capabilities=["ISO 9001:2015 certified", "15+ years in industrial sensors", "Digital I2C expertise", "IP67 housing production"],
+                conversation_log=[
+                    {
+                        "role": "assistant",
+                        "content": f"Sent inquiry to sales@techsupply.com for {requirement.quantity} temperature sensors",
+                        "timestamp": "2024-01-15 10:30:00"
+                    },
+                    {
+                        "role": "assistant",
+                        "content": "Received positive response. Company can meet requirements with 8-10 week lead time.",
+                        "timestamp": "2024-01-15 14:45:00"
+                    }
+                ]
+            ),
+            SupplierMatch(
+                name="GlobalSensor Industries",
+                contact_email="info@globalsensor.com",
+                contact_phone="+1-555-0456",
+                website="https://globalsensor.com",
+                location="Shenzhen, China",
+                match_score=87,
+                capabilities=["Specialized in temperature sensors", "I2C interfaces", "Automotive-grade components"],
+                conversation_log=[
+                    {
+                        "role": "assistant",
+                        "content": "Contacted GlobalSensor Industries regarding temperature sensor requirements",
+                        "timestamp": "2024-01-15 11:00:00"
+                    }
+                ]
+            ),
+            SupplierMatch(
+                name="Precision Components Co.",
+                contact_email="quotes@precisioncomp.com",
+                contact_phone="+1-555-0789",
+                website="https://precisioncomp.com",
+                location="Munich, Germany",
+                match_score=83,
+                capabilities=["Custom sensor solutions", "IP67/IP68 rated housings", "-40°C to 150°C range"],
+                conversation_log=[
+                    {
+                        "role": "assistant",
+                        "content": "Sent quote request to Precision Components Co.",
+                        "timestamp": "2024-01-15 11:30:00"
+                    }
+                ]
+            )
+        ]
+        
+        return {
+            "investigation_id": investigation_id,
+            "status": status,
+            "progress": progress,
+            "message": message,
+            "suppliers": [s.model_dump() for s in mock_suppliers]
+        }
+    
+    # Still processing
+    return {
+        "investigation_id": investigation_id,
+        "status": status,
+        "progress": progress,
+        "message": message
+    }
 
 
 @app.get("/health")

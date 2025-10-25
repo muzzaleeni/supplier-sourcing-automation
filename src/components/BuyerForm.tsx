@@ -105,11 +105,14 @@ export function BuyerForm() {
       const data = await response.json();
       console.log("Backend response:", data);
 
-      toast.success(`Requirements submitted! Investigation ID: ${data.investigation_id}`);
-      toast.info(`Found ${data.suppliers.length} potential suppliers`);
+      toast.success("Requirements submitted! AI agents are now searching...");
 
-      // Navigate to results page with data
-      navigate("/results", { state: data });
+      // Navigate to processing page with investigation ID
+      navigate("/processing", { 
+        state: { 
+          investigation_id: data.investigation_id 
+        } 
+      });
 
       form.reset();
     } catch (error) {
