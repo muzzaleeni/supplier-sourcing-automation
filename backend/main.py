@@ -43,13 +43,13 @@ class BuyerRequirement(BaseModel):
 
 
 class SupplierMatch(BaseModel):
-    company_name: str
+    name: str
     contact_email: str
-    contact_name: str
-    pricing: str
-    lead_time: str
-    capabilities: str
-    confidence_score: float
+    contact_phone: str
+    website: str
+    location: str
+    match_score: int
+    capabilities: List[str]
     conversation_log: List[dict]
 
 
@@ -76,59 +76,55 @@ async def process_requirement(requirement: BuyerRequirement):
     # Mock supplier data
     mock_suppliers = [
         SupplierMatch(
-            company_name="TechSupply Manufacturing Ltd.",
+            name="TechSupply Manufacturing Ltd.",
             contact_email="sales@techsupply.com",
-            contact_name="Sarah Johnson",
-            pricing="$15-22 per unit (volume discounts available)",
-            lead_time="8-10 weeks for initial order",
-            capabilities="ISO 9001:2015 certified, 15+ years in industrial sensors, digital I2C expertise, IP67 housing production",
-            confidence_score=0.92,
+            contact_phone="+1-555-0123",
+            website="https://techsupply.com",
+            location="San Jose, CA, USA",
+            match_score=92,
+            capabilities=["ISO 9001:2015 certified", "15+ years in industrial sensors", "Digital I2C expertise", "IP67 housing production"],
             conversation_log=[
                 {
-                    "from": "buyer",
-                    "to": "sales@techsupply.com",
-                    "subject": "RFQ: Industrial Temperature Sensors",
-                    "message": f"Hello, we're interested in sourcing {requirement.quantity} of temperature sensors..."
+                    "role": "assistant",
+                    "content": f"Sent inquiry to sales@techsupply.com for {requirement.quantity} temperature sensors",
+                    "timestamp": "2024-01-15 10:30:00"
                 },
                 {
-                    "from": "sales@techsupply.com",
-                    "to": requirement.email,
-                    "subject": "Re: RFQ: Industrial Temperature Sensors",
-                    "message": "Thank you for your inquiry. We can definitely help with your requirements..."
+                    "role": "assistant",
+                    "content": "Received positive response. Company can meet requirements with 8-10 week lead time.",
+                    "timestamp": "2024-01-15 14:45:00"
                 }
             ]
         ),
         SupplierMatch(
-            company_name="GlobalSensor Industries",
+            name="GlobalSensor Industries",
             contact_email="info@globalsensor.com",
-            contact_name="Michael Chen",
-            pricing="$18-25 per unit",
-            lead_time="6-8 weeks",
-            capabilities="Specialized in temperature sensors, I2C interfaces, automotive-grade components",
-            confidence_score=0.87,
+            contact_phone="+1-555-0456",
+            website="https://globalsensor.com",
+            location="Shenzhen, China",
+            match_score=87,
+            capabilities=["Specialized in temperature sensors", "I2C interfaces", "Automotive-grade components"],
             conversation_log=[
                 {
-                    "from": "buyer",
-                    "to": "info@globalsensor.com",
-                    "subject": "Product Inquiry",
-                    "message": "We need industrial temperature sensors with digital output..."
+                    "role": "assistant",
+                    "content": "Contacted GlobalSensor Industries regarding temperature sensor requirements",
+                    "timestamp": "2024-01-15 11:00:00"
                 }
             ]
         ),
         SupplierMatch(
-            company_name="Precision Components Co.",
+            name="Precision Components Co.",
             contact_email="quotes@precisioncomp.com",
-            contact_name="Emily Rodriguez",
-            pricing="$20-28 per unit",
-            lead_time="10-12 weeks",
-            capabilities="Custom sensor solutions, IP67/IP68 rated housings, -40°C to 150°C range",
-            confidence_score=0.83,
+            contact_phone="+1-555-0789",
+            website="https://precisioncomp.com",
+            location="Munich, Germany",
+            match_score=83,
+            capabilities=["Custom sensor solutions", "IP67/IP68 rated housings", "-40°C to 150°C range"],
             conversation_log=[
                 {
-                    "from": "buyer",
-                    "to": "quotes@precisioncomp.com",
-                    "subject": "Temperature Sensor Quote Request",
-                    "message": "Looking for a quote on industrial temperature sensors..."
+                    "role": "assistant",
+                    "content": "Sent quote request to Precision Components Co.",
+                    "timestamp": "2024-01-15 11:30:00"
                 }
             ]
         )
