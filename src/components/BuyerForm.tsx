@@ -105,14 +105,29 @@ export function BuyerForm() {
       const data = await response.json();
       console.log("Backend response:", data);
 
-      toast.success("Requirements submitted! AI agents are now searching...");
-
-      // Navigate to processing page with investigation ID
-      navigate("/processing", { 
-        state: { 
-          investigation_id: data.investigation_id 
-        } 
-      });
+      // Check if investigation is already completed (cached result)
+      if (data.status === "completed" && data.suppliers && data.suppliers.length > 0) {
+        toast.success("Found cached results! Showing matches now.");
+        
+        // Navigate directly to results
+        navigate("/results", {
+          state: {
+            investigation_id: data.investigation_id,
+            cached: data.cached || false,
+            suppliers: data.suppliers,
+            timestamp: data.timestamp || new Date().toISOString(),
+          },
+        });
+      } else {
+        toast.success("Requirements submitted! AI agents are now searching...");
+        
+        // Navigate to processing page with investigation ID
+        navigate("/processing", { 
+          state: { 
+            investigation_id: data.investigation_id 
+          } 
+        });
+      }
 
       form.reset();
     } catch (error) {

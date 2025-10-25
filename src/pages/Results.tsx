@@ -44,6 +44,30 @@ const Results = () => {
 
   const { investigation_id, cached, suppliers } = resultsData;
 
+  // Check if suppliers exist and has data
+  if (!suppliers || suppliers.length === 0) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="mx-auto max-w-6xl px-6 py-12 md:py-20">
+          <div className="mb-8">
+            <Button variant="ghost" onClick={() => navigate("/")} className="mb-4 -ml-4">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Form
+            </Button>
+            <div className="text-center">
+              <h1 className="text-3xl font-bold tracking-tight text-foreground md:text-4xl">
+                No Suppliers Found
+              </h1>
+              <p className="mt-4 text-lg text-muted-foreground">
+                We couldn't find any matching suppliers for your requirements. Please try submitting a new request with different criteria.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-6xl px-6 py-12 md:py-20">
