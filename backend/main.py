@@ -182,8 +182,8 @@ async def process_requirements(requirement: BuyerRequirement):
                     suppliers = json.loads(suppliers_field) if isinstance(suppliers_field, str) else suppliers_field
                     
                     # Format suppliers for frontend
-                    formatted_suppliers = []
-                    for sup in suppliers:
+                    formatted_suppliers = [] 
+                    for sup in suppliers: # type: ignore
                         formatted_suppliers.append({
                             "name": sup.get("name", "Unknown Company"),
                             "contact_email": sup.get("extracted_contact_email") or sup.get("email", ""),
@@ -246,22 +246,35 @@ async def process_requirements(requirement: BuyerRequirement):
             # 4. Parse results
             results = []
             items_dict = dict(items)
-            for item in items_dict.get("data", []):
+            for item in items_dict["data"]:
+                # logging.info("parsed results from exa: ", item)
                 item_str = str(item)
-                linkedin = re.search(r"https?://(?:[a-z]{2,4}\.)?linkedin\.com[^\s\'\)\],\"]+", item_str)
-                name = re.search(r"name=['\"]([^'\"]{2,120})['\"]", item_str)
-                email = re.search(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}", item_str)
+                
+                linkedin_re = re.compile(r'https?://(?:[a-z]{2,4}\.)?linkedin\.com[^\s\'\)\],>"]+', flags=re.IGNORECASE)
+                linkedin = sorted(set(m.group(0) for m in linkedin_re.finditer(item_str)))
+                logging.info(linkedin_re)
+
+                name_match = re.search(r"name=['\"]([^'\"]{2,120})['\"]", item_str)
+                name = name_match.group(1).strip() if name_match else None
+                
+                email_match = re.search(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}", item_str)
+                email = email_match.group(0).strip() if email_match else None                
+                logging.info(name)
+                logging.info(linkedin)
+                logging.info(email)
                 if linkedin and name and email:
                     results.append({
-                        "name": name.group(1).strip(),
-                        "email": email.group(0).strip(),
-                        "linkedin": linkedin.group(0).strip()
+                        "name": name,
+                        "email": email,
+                        "linkedin": linkedin[0]
                     })
 
             logger.info(f"Parsed {len(results)} enriched supplier results from EXA")
     except Exception as e:
         logger.error(f"Error with EXA enrichment: {e}")
         results = []
+
+    # logging.info("results", results)
 
     # 5. Email simulation
     buyer_req_dict = {
