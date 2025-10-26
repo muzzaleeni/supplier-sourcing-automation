@@ -1,78 +1,87 @@
-# Tacto Track - Supplier Sourcing Automation
+# Tech Hackathon Munich
 
-**Hackathon Project**: MVP ready by 25.10.2025 (night) → add nice-to-have features + presentation 26.10.2025 by 14:00
+## Tacto Track: Supplier Sourcing Automation
 
-## Project Structure
+Automates supplier sourcing end-to-end with the goal of accelerating the process from weeks to days: capture buyer requirements, find matching suppliers, enrich contacts, streamline the tedious back‑and‑forth outreach to identify the right decision‑maker, and present results.
 
-```
-/
-├── backend/              # FastAPI Python backend
-│   ├── main.py          # Main API endpoints
-│   ├── requirements.txt # Python dependencies
-│   ├── setup_weaviate.py # Weaviate schema setup
-│   └── README.md        # Backend documentation
-│
-├── src/                 # React frontend
-│   ├── components/      # UI components
-│   ├── pages/          # Page components
-│   └── ...
-│
-├── public/             # Static assets
-└── README.md           # This file
-```
+## Description
 
-# tech stack used
+This project provides an end-to-end workflow for automated supplier scouting:
 
+- Capture buyer requirements via frontend
+- Check for similar investigations in Weaviate to reuse results
+- If needed, start a new EXA Websets research
+- Automate outreach - mail conversations - to identify the right decision‑maker and capture their work email
+- Persist results in Weaviate and return them to the frontend
+
+**Flowchart:**
+
+![End-to-end flow diagram](public/flowchart.png)
+
+**Goals:** faster matching, structured top results, and reduced manual research/outreach.
+
+## Getting Started
+
+**Technology partners used:**
 - lovable
-- react 
-- fastapi
-- python
-- openai
-  - agents builder
-  - gpt-5
-- weaviate
+- openai 
+- weaviate 
 
-# project idea
+### Dependencies
 
-tacto track -> supplier sourcing automation
+- OS: macOS 14+/15, Windows 10+, or a recent Linux distro
+- Node.js ≥ 18 and npm
+- Python ≥ 3.11
+- Weaviate Cloud instance with API key
+- OpenAI API key (`OPENAI_API_KEY`)
+- EXA API key (`EXA_API_KEY`)
+- Backend environment variables (e.g., in `backend/.env`):
+  - `WEAVIATE_URL`
+  - `WEAVIATE_API_KEY`
+  - `EXA_API_KEY`
+  - `OPENAI_API_KEY`
 
-# side challenges 
+Python dependencies (see `backend/requirements.txt`): FastAPI, Uvicorn, Pydantic, python-dotenv
 
-think later (after mvp built)
+### Installing
 
-# requirements
+1. Clone the repository.
+2. Backend setup:
+   ```bash
+   cd backend
+   python3 -m venv .venv
+   source .venv/bin/activate  # Windows: .venv\\Scripts\\activate
+   pip install -r requirements.txt
+   # Create .env with WEAVIATE_URL, WEAVIATE_API_KEY, EXA_API_KEY, OPENAI_API_KEY
+   ```
+3. Frontend setup (project root):
+   ```bash
+   npm install
+   ```
 
-## must-have
+### Executing program
 
-- buyer input form
-- matching & ranking (top 3)
-- conversation automation
-- results email to buyer
-- investigation similarity
+- Start backend (default: port 8000):
+  ```bash
+  uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
+  ```
 
-## nice-to-have
+- Start frontend (Vite dev server on port 8080):
+  ```bash
+  npm run dev
+  ```
 
-todo: add after must-haves
+- Open the app at `http://localhost:8080`.
 
-# end-to-end flow
+Key API endpoints (backend):
 
-1. user input
-2. input translated into vector  
-3. vector similarity check in database
-4. similarity score check
-    - if similarity score is high -> return investigation result
-    - if similarity score is low-med -> start a new investigation
-5. api call to Exa with user input
-6. parse top3 results with email provided (full name & email)
-7. conversation loop with those 3 PoCs start
-    - send a template reachout message (for now hardcoded)
-    - parse replies
-    - respond accordingly
-    - repeat
-8. identify if the email is the actual PoC
-9. send results (maybe logs) to buyer email
+- POST `/api/v1/requirements` – submit buyer requirements, returns supplier results (cached if similar)
+- GET `/api/v1/investigations/{investigation_id}/status` – check status and progress
+- GET `/health` – health check
 
-# responsibilities
+## Authors
 
-* Muslim - 1-4 tasks in end-to-end flow
-* Moritz, Leandro, David - 5-9 tasks in the end-to-end flow
+- Muslim
+- Leandro 
+- David
+- Moritz
