@@ -172,10 +172,12 @@ async def process_requirements(requirement: BuyerRequirement):
             return_metadata=wq.MetadataQuery(distance=True)
         )
 
+        logging.info(response)
+
         for obj in response.objects:
             similarity = obj.metadata.distance
             logger.info(f"Found similar investigation with similarity: {similarity}")
-            if similarity is not None and -0.05<similarity<0.05:
+            if similarity is not None and -0.5<similarity<0.5:
                 properties = obj.properties
                 if "suppliers" in properties:
                     suppliers_field = properties["suppliers"]
