@@ -14,6 +14,7 @@ import time
 import re
 from exa_py import Exa
 from openai import OpenAI
+import asyncio
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("tacto")
@@ -228,7 +229,7 @@ async def process_requirements(requirement: BuyerRequirement):
 
         # 3. Poll for enrichment results
         max_wait = 60
-        time.sleep(60)
+        await asyncio.sleep(max_wait)
         logger.info(f"Polling EXA webset (waited {max_wait}s)")
         items = exa.websets.items.list(webset_id=webset_id, limit=20)
         if items and items.data:
