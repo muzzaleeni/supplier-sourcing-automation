@@ -228,17 +228,12 @@ async def process_requirements(requirement: BuyerRequirement):
 
         # 3. Poll for enrichment results
         max_wait = 60
-        interval = 5
-        waited = 0
-        items = None
-        while waited < max_wait:
-            logger.info(f"Polling EXA webset (waited {waited}s)")
-            items = exa.websets.items.list(webset_id=webset_id, limit=20)
-            if items and items.data:
-                logger.info(f"Items received from EXA: {len(items.data)}")
-                break
-            time.sleep(interval)
-            waited += interval
+        time.sleep(60)
+        logger.info(f"Polling EXA webset (waited {waited}s)")
+        items = exa.websets.items.list(webset_id=webset_id, limit=20)
+        if items and items.data:
+            logger.info(f"Items received from EXA: {len(items.data)}")
+            
 
         if not items or not items.data:
             logger.warning("No items returned from EXA after polling")
