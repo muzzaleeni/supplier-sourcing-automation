@@ -137,7 +137,11 @@ Return a JSON object ONLY (no other text) with these fields:
     )
 
     content = extraction.choices[0].message.content or "{}"
-    extracted = json.loads(content)
+    
+    try:
+        extracted = json.loads(content)
+    except json.JSONDecodeError:
+        extracted = {}
 
     next_action = None
     if not extracted.get("is_decision_maker") and extracted.get("contact_email"):
