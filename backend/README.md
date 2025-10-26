@@ -1,10 +1,29 @@
-# Tacto Track Backend - API Scaffold
+# Tacto Track Backend
 
-A minimal FastAPI backend that exposes endpoints for supplier sourcing automation. Currently returns mock data - implement your business logic here.
+A production-ready FastAPI backend for intelligent supplier sourcing automation. Uses vector search, web enrichment, and AI-powered conversations to match buyers with suppliers.
+
+## Features
+
+- **Smart Caching**: Vector similarity search finds existing investigations (distance ≤ 0.5)
+- **Web Enrichment**: EXA API discovers suppliers with contact information
+- **AI Conversations**: OpenAI simulates buyer-supplier email exchanges
+- **Persistent Storage**: Weaviate stores and retrieves investigation results
+- **Status Tracking**: Real-time progress monitoring for investigations
 
 ## Quick Start
 
-### 1. Setup Python Environment
+### 1. Environment Variables
+
+Create a `.env` file in the backend directory:
+
+```bash
+WEAVIATE_URL=your_weaviate_cluster_url
+WEAVIATE_API_KEY=your_weaviate_api_key
+EXA_API_KEY=your_exa_api_key
+OPENAI_API_KEY=your_openai_api_key
+```
+
+### 2. Setup Python Environment
 
 ```bash
 cd backend
@@ -17,15 +36,13 @@ source venv/bin/activate
 venv\Scripts\activate
 ```
 
-### 2. Install Dependencies
+### 3. Install Dependencies
 
 ```bash
 pip install -r requirements.txt
-or
-python -m pip install -r requirements.txt
 ```
 
-### 3. Run the Server
+### 4. Run the Server
 
 ```bash
 # Development mode (with auto-reload)
@@ -41,7 +58,7 @@ The API will be available at `http://localhost:8000`
 
 ### POST `/api/v1/requirements`
 
-Submit buyer requirements and receive supplier matches.
+Submit buyer requirements and receive supplier matches. The system first checks for similar investigations in the vector database. If found (similarity distance ≤ 0.5), returns cached results instantly. Otherwise, initiates a new investigation using EXA web enrichment and AI conversations.
 
 **Request Body:**
 ```json
@@ -58,23 +75,42 @@ Submit buyer requirements and receive supplier matches.
 }
 ```
 
-**Response (200 OK):**
+**Response (200 OK - Cached):**
 ```json
 {
-  "investigation_id": "inv_20251025_143022",
+  "investigation_id": "uuid-here",
+  "cached": true,
+  "status": "completed",
+  "message": "Similar investigation found. Returning cached results.",
+  "suppliers": [...],
+  "timestamp": "2025-10-25T14:30:22.123456"
+}
+```
+
+**Response (200 OK - New Investigation):**
+```json
+{
+  "investigation_id": "uuid-here",
   "cached": false,
-  "suppliers": [
-    {
-      "company_name": "TechSupply Manufacturing Ltd.",
-      "contact_email": "sales@techsupply.com",
-      "contact_name": "Sarah Johnson",
-      "pricing": "$15-22 per unit (volume discounts available)",
-      "lead_time": "8-10 weeks for initial order",
-      "capabilities": "ISO 9001:2015 certified, 15+ years in industrial sensors...",
-      "confidence_score": 0.92,
-      "conversation_log": [...]
-    }
-  ],
+  "status": "processing",
+  "message": "New investigation started. Use /status endpoint to track progress.",
+  "suppliers": [...],
+  "timestamp": "2025-10-25T14:30:22.123456"
+}
+```
+
+### GET `/api/v1/investigations/{investigation_id}/status`
+
+Check the status of an ongoing or completed investigation.
+
+**Response:**
+```json
+{
+  "investigation_id": "uuid-here",
+  "status": "processing" | "completed" | "failed",
+  "progress": 65,
+  "message": "Analyzing supplier responses...",
+  "suppliers": [...],
   "timestamp": "2025-10-25T14:30:22.123456"
 }
 ```
@@ -109,35 +145,38 @@ Or visit the interactive API docs:
 
 ```
 backend/
-├── main.py              # FastAPI app with mock endpoints
-├── requirements.txt     # Python dependencies
-├── .env.example         # Environment variables template
+├── main.py              # FastAPI app with Weaviate, EXA, OpenAI integration
+├── requirements.txt     # Python dependencies (FastAPI, Weaviate, EXA, OpenAI)
+├── create_collection.py # Weaviate collection initialization script
+├── .env                 # Environment variables (not tracked in git)
 ├── test_request.json    # Sample request for testing
 └── README.md           # This file
 ```
 
-## Next Steps
+## How It Works
 
-This is a scaffold API that returns mock data. To implement real functionality:
+1. **Request Processing**: Buyer submits requirements via POST endpoint
+2. **Similarity Search**: Checks Weaviate for similar investigations (vector distance ≤ 0.5)
+3. **Cache Hit**: Returns existing suppliers instantly if match found
+4. **Cache Miss**: Initiates new investigation:
+   - EXA API searches web for supplier contacts (~60 seconds)
+   - OpenAI simulates email conversations with suppliers
+   - Results stored in Weaviate for future caching
+5. **Status Tracking**: Frontend polls status endpoint for progress updates
 
-1. **Add External Services:**
-   - Uncomment dependencies in `requirements.txt`
-   - Add API keys to `.env` file
-   - Initialize clients in `main.py`
+## Performance Notes
 
-2. **Implement Business Logic:**
-   - Replace mock responses with real data
-   - Add helper functions for:
-     - Vector embeddings
-     - Similarity search
-     - Supplier search
-     - Email automation
-     - Data storage
+- **Cached Results**: ~500ms response time
+- **New Investigations**: ~60-90 seconds (EXA enrichment + AI processing)
+- **Similarity Threshold**: Distance ≤ 0.5 triggers cache hit (adjustable in code)
 
-3. **Error Handling:**
-   - Add proper validation
-   - Implement retry logic
-   - Add logging and monitoring
+## Future Enhancements
+
+1. **Email Integration**: Real SMTP for actual supplier outreach
+2. **Advanced Enrichment**: Additional data sources beyond EXA
+3. **ML Scoring**: Train models on successful matches to improve ranking
+4. **Rate Limiting**: Add request throttling for production
+5. **WebSocket Support**: Real-time progress updates instead of polling
 
 ## CORS Configuration
 
