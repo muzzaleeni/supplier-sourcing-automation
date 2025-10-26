@@ -89,7 +89,19 @@ export function BuyerForm() {
       };
 
       console.log("Sending request to backend:", payload);
-
+      
+      // Generate temporary ID for immediate navigation
+      const tempId = `temp_${Date.now()}`;
+      
+      // Navigate to processing page immediately to show progress
+      navigate("/processing", { 
+        state: { 
+          investigation_id: tempId,
+          isProcessing: true
+        } 
+      });
+      
+      // Continue backend request in background
       const response = await fetch("http://localhost:8000/api/v1/requirements", {
         method: "POST",
         headers: {
@@ -105,34 +117,22 @@ export function BuyerForm() {
       const data = await response.json();
       console.log("Backend response:", data);
 
-      // Check if investigation is already completed (cached result)
-      if (data.status === "completed" && data.suppliers && data.suppliers.length > 0) {
-        toast.success("Found cached results! Showing matches now.");
-        
-        // Navigate directly to results
-        navigate("/results", {
-          state: {
-            investigation_id: data.investigation_id,
-            cached: data.cached || false,
-            suppliers: data.suppliers,
-            timestamp: data.timestamp || new Date().toISOString(),
-          },
-        });
-      } else {
-        toast.success("Requirements submitted! AI agents are now searching...");
-        
-        // Navigate to processing page with investigation ID
-        navigate("/processing", { 
-          state: { 
-            investigation_id: data.investigation_id 
-          } 
-        });
-      }
+      // Update the processing page with real investigation ID
+      navigate("/processing", { 
+        state: { 
+          investigation_id: data.investigation_id,
+          isProcessing: false,
+          cached: data.cached
+        },
+        replace: true
+      });
 
       form.reset();
     } catch (error) {
       console.error("Error submitting requirements:", error);
       toast.error("Failed to submit requirements. Please ensure the backend is running on localhost:8000");
+      // Navigate back to form on error
+      navigate("/", { replace: true });
     } finally {
       setIsLoading(false);
     }

@@ -5,6 +5,8 @@ import { Progress } from "@/components/ui/progress";
 
 interface ProcessingState {
   investigation_id: string;
+  isProcessing?: boolean;
+  cached?: boolean;
 }
 
 interface StatusResponse {
@@ -33,8 +35,19 @@ const Processing = () => {
       return;
     }
 
+    // Don't poll if using temporary ID (still waiting for backend)
+    if (processingState.investigation_id.startsWith('temp_')) {
+      setStatus({
+        investigation_id: processingState.investigation_id,
+        status: "processing",
+        progress: 10,
+        message: "Analyzing your requirements and preparing search...",
+      });
+      return;
+    }
+
     let pollCount = 0;
-    const maxPolls = 10;
+    const maxPolls = 40; // Increased for ~2 minute investigations
 
     const pollStatus = async () => {
       try {
@@ -50,17 +63,17 @@ const Processing = () => {
         setStatus(data);
 
         if (data.status === "completed" && data.suppliers) {
-          // Navigate to results with supplier data
+          // Show brief success state before navigating
           setTimeout(() => {
             navigate("/results", {
               state: {
                 investigation_id: data.investigation_id,
-                cached: false,
+                cached: processingState.cached || false,
                 suppliers: data.suppliers,
                 timestamp: new Date().toISOString(),
               },
             });
-          }, 1000);
+          }, 1500);
         }
       } catch (error) {
         console.error("Error polling status:", error);
@@ -74,6 +87,10 @@ const Processing = () => {
 
       if (pollCount >= maxPolls) {
         clearInterval(interval);
+        setStatus(prev => ({
+          ...prev,
+          message: "Investigation is taking longer than expected. Please check back shortly.",
+        }));
       }
     }, 3000);
 
@@ -198,8 +215,11 @@ const Processing = () => {
 
             {/* Additional Info */}
             <div className="rounded-lg bg-muted p-4 text-center text-sm text-muted-foreground">
-              This typically takes 30-60 seconds. We're analyzing thousands of suppliers
-              and initiating first contact with the best matches.
+              {processingState?.cached ? (
+                "Loading cached results... This should only take a moment."
+              ) : (
+                "New investigation in progress. This typically takes 30-90 seconds as we search thousands of suppliers and initiate AI-powered conversations with the best matches."
+              )}
             </div>
           </div>
         </div>
