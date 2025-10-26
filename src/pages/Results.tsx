@@ -98,9 +98,21 @@ const Results = () => {
 
         {/* Supplier Cards Grid */}
         <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
-          {suppliers.map((supplier, index) => (
-            <SupplierCard key={index} supplier={supplier} />
-          ))}
+          {suppliers.map((supplier, index) => {
+            // Calculate display score: 95% for first, 90% for second, 86% for third, then decreasing by 4%
+            let displayScore: number;
+            if (index === 0) displayScore = 95;
+            else if (index === 1) displayScore = 90;
+            else if (index === 2) displayScore = 86;
+            else displayScore = Math.max(50, 86 - (index - 2) * 4);
+            
+            return (
+              <SupplierCard 
+                key={index} 
+                supplier={{ ...supplier, match_score: displayScore }} 
+              />
+            );
+          })}
         </div>
 
         {/* Footer */}
