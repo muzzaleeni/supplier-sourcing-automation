@@ -171,7 +171,7 @@ async def process_requirements(requirement: BuyerRequirement):
         for obj in response.objects:
             similarity = obj.metadata.distance
             logger.info(f"Found similar investigation with similarity: {similarity}")
-            if similarity is not None and similarity >= 0.50:
+            if similarity is not None and -0.05<similarity<0.05:
                 properties = obj.properties
                 if "suppliers" in properties:
                     suppliers_field = properties["suppliers"]
