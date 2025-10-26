@@ -164,7 +164,10 @@ async def process_requirements(requirement: BuyerRequirement):
     logger.info(f"Processing requirement from {requirement.companyName}: {requirement.productDescription}")
     query_text = f"{requirement.productDescription} {requirement.specifications or ''}"
 
-    # 1. Check Weaviate for similar investigation
+    # Replacement block for the Weaviate cache-check and return logic.
+# Paste this block in place of the original "# 1. Check Weaviate for similar investigation" try/except.
+
+    # 1. Check Weaviate for similar investigation (robust parsing + sensible threshold)
     try:
         response = investigations_collection.query.near_text(
             query=query_text,
@@ -172,49 +175,152 @@ async def process_requirements(requirement: BuyerRequirement):
             return_metadata=wq.MetadataQuery(distance=True)
         )
 
-        logging.info(response)
+        logger.info(f"Weaviate response: {response}")
 
-        for obj in response.objects:
-            similarity = obj.metadata.distance
-            logger.info(f"Found similar investigation with similarity: {similarity}")
-            if similarity is not None and -0.5<similarity<0.5:
-                properties = obj.properties
-                if "suppliers" in properties:
-                    suppliers_field = properties["suppliers"]
+        # Normalize objects depending on SDK shape
+        if hasattr(response, "objects"):
+            objects = response.objects or []
+        elif isinstance(response, dict):
+            objects = response.get("objects", [])
+        else:
+            objects = []
+
+        for obj in objects:
+            # Extract distance (Weaviate typically returns a distance where 0.0 == identical)
+            similarity = None
+            try:
+                if isinstance(obj, dict):
+                    similarity = (obj.get("metadata") or {}).get("distance") or obj.get("distance")
+                else:
+                    # SDK object may expose metadata.distance or distance directly
+                    metadata = getattr(obj, "metadata", None)
+                    similarity = getattr(obj, "distance", None) or (metadata.distance if metadata and hasattr(metadata, "distance") else None)
+            except Exception:
+                similarity = None
+
+            if similarity is None:
+                logger.info("Skipping object without distance")
+                continue
+
+            logger.info(f"Found similar investigation with distance: {similarity}")
+
+            # Use an inclusive threshold: distance <= 0.5 considered a match (tweakable)
+            if float(similarity) <= 0.5:
+                # Extract properties robustly
+                if isinstance(obj, dict):
+                    properties = obj.get("properties", {})
+                else:
+                    properties = getattr(obj, "properties", {}) or {}
+
+                # Try several common field names for stored suppliers
+                suppliers_field = properties.get("suppliers") or properties.get("suppliers_json") or properties.get("results") or "[]"
+
+                try:
                     suppliers = json.loads(suppliers_field) if isinstance(suppliers_field, str) else suppliers_field
-                    
-                    # Format suppliers for frontend
-                    formatted_suppliers = [] 
-                    for sup in suppliers: # type: ignore
-                        formatted_suppliers.append({
-                            "name": sup.get("name", "Unknown Company"),
-                            "contact_email": sup.get("extracted_contact_email") or sup.get("email", ""),
-                            "contact_phone": "+1 (555) 000-0000",  # Mock data
-                            "website": sup.get("linkedin", "https://example.com"),
-                            "location": "United States",  # Mock data
-                            "match_score": 95,
-                            "capabilities": ["Manufacturing", "Global Shipping", "ISO Certified"],
-                            "conversation_log": [
-                                {
-                                    "role": "system",
-                                    "content": f"Initial contact made with {sup.get('name')}",
-                                    "timestamp": datetime.now().isoformat()
-                                }
-                            ]
-                        })
-                    
-                    logger.info(f"Returning {len(formatted_suppliers)} cached suppliers")
-                    return {
-                        "investigation_id": str(obj.uuid),
-                        "cached": True,
-                        "status": "completed",
-                        "message": "Similar investigation found. Returning cached results.",
-                        "suppliers": formatted_suppliers,
-                        "timestamp": properties.get("created_at", datetime.now().isoformat())
-                    }
+                except Exception:
+                    suppliers = suppliers_field if isinstance(suppliers_field, list) else []
+
+                formatted_suppliers = []
+                for sup in suppliers:
+                    # support multiple naming conventions in cached data
+                    name = sup.get("company_name") or sup.get("name") or sup.get("vendor") or "Unknown Company"
+                    contact_email = sup.get("contact_email") or sup.get("email") or sup.get("work_email") or ""
+                    contact_phone = sup.get("contact_phone") or sup.get("phone") or ""
+                    website = sup.get("website") or sup.get("linkedin") or ""
+                    location = sup.get("location") or sup.get("country") or ""
+                    capabilities = sup.get("capabilities") or sup.get("tags") or []
+                    conversation_log = sup.get("conversation_log") or []
+
+                    # Derive a match score from distance if not present
+                    raw_score = sup.get("match_score")
+                    if raw_score is None:
+                        try:
+                            match_score = int(round((1.0 - float(similarity)) * 100))
+                        except Exception:
+                            match_score = 0
+                    else:
+                        match_score = int(raw_score) if isinstance(raw_score, (int, float)) else 0
+
+                    formatted_suppliers.append({
+                        "name": name,
+                        "contact_email": contact_email,
+                        "contact_phone": contact_phone,
+                        "website": website,
+                        "location": location,
+                        "match_score": match_score,
+                        "capabilities": capabilities,
+                        "conversation_log": conversation_log
+                    })
+
+                created_at = properties.get("created_at") or properties.get("createdAt") or datetime.now().isoformat()
+                investigation_uuid = getattr(obj, "uuid", None) or properties.get("uuid") or properties.get("id") or ""
+
+                logger.info(f"Returning {len(formatted_suppliers)} cached suppliers from investigation {investigation_uuid}")
+
+                return {
+                    "investigation_id": str(investigation_uuid),
+                    "cached": True,
+                    "status": properties.get("status", "completed"),
+                    "message": "Similar investigation found. Returning cached results.",
+                    "suppliers": formatted_suppliers,
+                    "timestamp": created_at
+                }
     except Exception as e:
         logger.error(f"Error checking Weaviate cache: {e}")
         # Continue with new investigation
+
+
+    # # 1. Check Weaviate for similar investigation
+    # try:
+    #     response = investigations_collection.query.near_text(
+    #         query=query_text,
+    #         limit=3,
+    #         return_metadata=wq.MetadataQuery(distance=True)
+    #     )
+
+    #     logging.info(response)
+
+    #     for obj in response.objects:
+    #         similarity = obj.metadata.distance
+    #         logger.info(f"Found similar investigation with similarity: {similarity}")
+    #         if similarity is not None and -0.5<similarity<0.5:
+    #             properties = obj.properties
+    #             if "suppliers" in properties:
+    #                 suppliers_field = properties["suppliers"]
+    #                 suppliers = json.loads(suppliers_field) if isinstance(suppliers_field, str) else suppliers_field
+                    
+    #                 # Format suppliers for frontend
+    #                 formatted_suppliers = [] 
+    #                 for sup in suppliers: # type: ignore
+    #                     formatted_suppliers.append({
+    #                         "name": sup.get("name", "Unknown Company"),
+    #                         "contact_email": sup.get("extracted_contact_email") or sup.get("email", ""),
+    #                         "contact_phone": "+1 (555) 000-0000",  # Mock data
+    #                         "website": sup.get("linkedin", "https://example.com"),
+    #                         "location": "United States",  # Mock data
+    #                         "match_score": 95,
+    #                         "capabilities": ["Manufacturing", "Global Shipping", "ISO Certified"],
+    #                         "conversation_log": [
+    #                             {
+    #                                 "role": "system",
+    #                                 "content": f"Initial contact made with {sup.get('name')}",
+    #                                 "timestamp": datetime.now().isoformat()
+    #                             }
+    #                         ]
+    #                     })
+                    
+    #                 logger.info(f"Returning {len(formatted_suppliers)} cached suppliers")
+    #                 return {
+    #                     "investigation_id": str(obj.uuid),
+    #                     "cached": True,
+    #                     "status": "completed",
+    #                     "message": "Similar investigation found. Returning cached results.",
+    #                     "suppliers": formatted_suppliers,
+    #                     "timestamp": properties.get("created_at", datetime.now().isoformat())
+    #                 }
+    # except Exception as e:
+    #     logger.error(f"Error checking Weaviate cache: {e}")
+    #     # Continue with new investigation
 
     # 2. No similar investigation → EXA enrichment
     logger.info("No cached results found. Starting new investigation with EXA enrichment.")
