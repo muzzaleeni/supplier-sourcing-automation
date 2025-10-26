@@ -186,28 +186,3 @@ CORS is pre-configured for:
 - `http://localhost:8080` (alternative port)
 
 Update `main.py` to add production origins when deploying.
-
-## Deployment
-
-### Option 1: Railway
-```bash
-railway login
-railway init
-railway up
-```
-
-### Option 2: Render
-1. Connect your GitHub repo
-2. Create new Web Service
-3. Build command: `pip install -r requirements.txt`
-4. Start command: `uvicorn main:app --host 0.0.0.0 --port $PORT`
-
-### Option 3: Docker
-```dockerfile
-FROM python:3.11-slim
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-COPY . .
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
-```
