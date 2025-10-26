@@ -11,7 +11,7 @@ This project provides an end-to-end workflow for automated supplier scouting:
 - Capture buyer requirements via frontend
 - Check for similar investigations in Weaviate to reuse results
 - If needed, start a new EXA Websets research
-- Automate outreach - mail conversations - to identify the right decision‑maker and capture their work email
+- Automate outreach - mail conversations - until the right decision‑maker is identified and capture their work email
 - Persist results in Weaviate and return them to the frontend
 
 **Flowchart:**
