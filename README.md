@@ -1,4 +1,4 @@
-# Tech Hackathon Munich
+# Munich AI Hackathon - {Tech: Europe}
 
 ## Tacto Track: Supplier Sourcing Automation
 
