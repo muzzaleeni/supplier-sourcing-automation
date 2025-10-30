@@ -15,6 +15,7 @@ import re
 from exa_py import Exa
 from openai import OpenAI
 import asyncio
+import random
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("tacto")
@@ -109,12 +110,19 @@ Best regards,
 """
     conversation.append({"role": "buyer", "message": outreach})
 
+    emails = [
+        "nomenuovo@techsupply.com",
+        "support@techsupply.com",
+        "info@techsupply.com"
+    ]
+
+    selected_email = random.choice(emails)
     # 2. Simulate supplier reply
     simulated_reply = (
         f"Subject: RE: Inquiry: {buyer_requirements.get('product_description', '')}\n\n"
         f"Hello {buyer_requirements.get('contact_name', '')},\n\n"
         "Thank you for reaching out. No, I'm not the right person to handle this request. "
-        "Please contact: nomenuovo@techsupply.com for further details.\n\n"
+        f"Please contact: {selected_email} for further details.\n\n"
         "Best regards,\n"
         f"{supplier.get('contact_name', '')}\n{supplier.get('company_name', '')}"
     )

@@ -16,7 +16,7 @@ This project provides an end-to-end workflow for automated supplier scouting:
 
 **Flowchart:**
 
-![End-to-end flow diagram](public/flowchart.png)
+![End-to-end flow diagram](public/flowchart.svg)
 
 **Goals:** faster matching, structured top results, and reduced manual research/outreach.
 
